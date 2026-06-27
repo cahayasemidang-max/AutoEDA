@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ code }} — DS Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #070B14;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        .error-mesh {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .error-mesh .sphere {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+        }
+        .error-mesh .sphere:nth-child(1) { width:500px;height:500px;background:radial-gradient(circle,#4318FF,transparent);top:-150px;left:-150px;animation:err-float 20s ease-in-out infinite; }
+        .error-mesh .sphere:nth-child(2) { width:450px;height:450px;background:radial-gradient(circle,#868CFF,transparent);bottom:-120px;right:-120px;animation:err-float 25s ease-in-out infinite reverse; }
+        .error-mesh .sphere:nth-child(3) { width:350px;height:350px;background:radial-gradient(circle,#4318FF,transparent);top:50%;left:50%;animation:err-float 18s ease-in-out infinite 5s; }
+        @keyframes err-float { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-40px) scale(1.1)} 66%{transform:translate(-20px,20px) scale(0.95)} }
+        .error-card {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 60px 48px;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #4318FF, #868CFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 8px;
+            letter-spacing: -0.04em;
+        }
+        .error-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #E5E7EB;
+            margin-bottom: 12px;
+        }
+        .error-desc {
+            font-size: 0.9rem;
+            color: #9CA3AF;
+            line-height: 1.7;
+            margin-bottom: 32px;
+        }
+        .error-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .error-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            font-family: inherit;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .error-btn-primary {
+            background: linear-gradient(135deg, #4318FF, #868CFF);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(67,24,255,0.25);
+        }
+        .error-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(67,24,255,0.35);
+        }
+        .error-btn-secondary {
+            background: rgba(255,255,255,0.06);
+            color: #E5E7EB;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .error-btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        @media (max-width: 480px) {
+            .error-card { padding: 40px 24px; }
+            .error-code { font-size: 4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-mesh">
+        <div class="sphere"></div>
+        <div class="sphere"></div>
+        <div class="sphere"></div>
+    </div>
+    <div class="error-card">
+        <div class="error-code">{{ code }}</div>
+        <div class="error-title">{{ message }}</div>
+        <div class="error-desc" id="err-desc">
+            {% if code == 404 %}
+            <span data-i18n="err_not_found">Halaman yang Anda cari tidak ditemukan atau telah dipindahkan.</span>
+            {% elif code == 500 %}
+            <span data-i18n="err_server_error">Terjadi kesalahan pada server. Silakan coba lagi nanti.</span>
+            {% else %}
+            <span data-i18n="err_unexpected">Terjadi kesalahan yang tidak terduga.</span>
+            {% endif %}
+        </div>
+        <div class="error-actions">
+            <a href="{{ url_for('index') }}" class="error-btn error-btn-primary">
+                <i class="fas fa-home"></i> <span data-i18n="err_back_home">Kembali ke Beranda</span>
+            </a>
+            <a href="javascript:history.back()" class="error-btn error-btn-secondary">
+                <i class="fas fa-arrow-left"></i> <span data-i18n="err_go_back">Kembali</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

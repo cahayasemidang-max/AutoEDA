@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="auth_title">DS Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="auth-page" id="auth-body">
+
+<div class="auth-mesh-bg">
+    <div class="mesh-sphere sphere-1"></div>
+    <div class="mesh-sphere sphere-2"></div>
+    <div class="mesh-sphere sphere-3"></div>
+</div>
+
+<canvas id="premium-3d-data-canvas"></canvas>
+
+<div class="auth-lang-bar">
+    <button id="auth-theme-toggle" style="background:rgba(255,255,255,0.06);border:1px solid var(--auth-border);color:var(--auth-muted);padding:8px 12px;border-radius:10px;cursor:pointer;font-size:0.9rem;margin-left:8px;transition:border-color 0.2s;vertical-align:middle;" onclick="toggleAuthTheme()" aria-label="Toggle theme">
+        <i class="fas fa-moon" id="auth-theme-icon"></i>
+    </button>
+</div>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">
+                <i class="fas fa-chart-simple"></i>
+            </div>
+            <h1 data-i18n="auth_title">DS Generator</h1>
+            <p data-i18n="auth_subtitle">Platform Statistik Deskriptif</p>
+        </div>
+
+        <div class="auth-tabs">
+            {% if mode == 'login' %}
+            <span class="auth-tab active" data-mode="login" data-i18n="auth_signin_tab">Masuk</span>
+            <a href="{{ url_for('auth.register') }}" class="auth-tab" data-i18n="auth_register_tab">Daftar</a>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="auth-tab" data-i18n="auth_signin_tab">Masuk</a>
+            <span class="auth-tab active" data-mode="register" data-i18n="auth_register_tab">Daftar</span>
+            {% endif %}
+        </div>
+
+        <div class="auth-error" id="auth-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="auth-error-msg"></span>
+        </div>
+
+        {% if mode == 'login' %}
+        <form class="auth-form" id="auth-form" method="POST" action="{{ url_for('auth.login') }}">
+            <div class="input-group">
+                <label for="login"><i class="fas fa-user"></i> <span data-i18n="auth_emailuser">Email / Username</span></label>
+                <input type="text" id="login" name="login" data-i18n-placeholder="auth_emailuser_ph" placeholder="Masukkan email atau username" required autofocus>
+            </div>
+
+            <div class="input-group">
+                <label for="password"><i class="fas fa-lock"></i> <span data-i18n="auth_password">Password</span></label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" data-i18n-placeholder="auth_password_ph" placeholder="Masukkan kata sandi" required>
+                    <button type="button" class="toggle-password" onclick="togglePassword('password')" aria-label="Toggle password visibility">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="auth-options">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="remember-me">
+                    <span data-i18n="auth_remember">Ingat Saya</span>
+                </label>
+            </div>
+
+            <button type="submit" class="auth-btn">
+                <span data-i18n="auth_signin_btn">Masuk</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </form>
+
+        <div class="auth-switch">
+            <span data-i18n="auth_no_account">Belum punya akun?</span>
+            <a href="{{ url_for('auth.register') }}" data-i18n="auth_register_tab">Daftar</a>
+        </div>
+        {% else %}
+        <form class="auth-form" id="auth-form" method="POST" action="{{ url_for('auth.register') }}">
+            <div class="input-group">
+                <label for="username"><i class="fas fa-user"></i> <span data-i18n="auth_username">Username</span></label>
+                <input type="text" id="username" name="username" data-i18n-placeholder="auth_username_ph" placeholder="Pilih username" required autofocus>
+            </div>
+
+            <div class="input-group">
+                <label for="email"><i class="fas fa-envelope"></i> <span data-i18n="auth_email">Email</span></label>
+                <input type="email" id="email" name="email" data-i18n-placeholder="auth_email_ph" placeholder="Masukkan email" required>
+            </div>
+
+            <div class="input-group">
+                <label for="reg-password"><i class="fas fa-lock"></i> <span data-i18n="auth_password">Password</span></label>
+                <div class="password-wrapper">
+                    <input type="password" id="reg-password" name="password" data-i18n-placeholder="auth_regpass_ph" placeholder="Buat kata sandi" required>
+                    <button type="button" class="toggle-password" onclick="togglePassword('reg-password')" aria-label="Toggle password visibility">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="confirm-password"><i class="fas fa-lock"></i> <span data-i18n="auth_password">Konfirmasi Kata Sandi</span></label>
+                <div class="password-wrapper">
+                    <input type="password" id="confirm-password" name="confirm_password" data-i18n-placeholder="auth_confirm_ph" placeholder="Konfirmasi kata sandi" required>
+                    <button type="button" class="toggle-password" onclick="togglePassword('confirm-password')" aria-label="Toggle password visibility">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-btn">
+                <span data-i18n="auth_register_btn">Buat Akun</span>
+                <i class="fas fa-rocket"></i>
+            </button>
+        </form>
+
+        <div class="auth-switch">
+            <span data-i18n="auth_have_account">Sudah punya akun?</span>
+            <a href="{{ url_for('auth.login') }}" data-i18n="auth_signin_tab">Masuk</a>
+        </div>
+        {% endif %}
+
+        <div class="auth-footer">
+            <span data-i18n="auth_footer">The Architects — ITSB</span>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword(id) {
+    var input = document.getElementById(id);
+    var icon = input.parentElement.querySelector('.toggle-password i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+(function() {
+    var remember = document.getElementById('remember-me');
+    var loginInput = document.getElementById('login');
+    var passInput = document.getElementById('password');
+
+    if (remember && loginInput && passInput) {
+        var saved = localStorage.getItem('ds_remember_user');
+        if (saved) {
+            try {
+                var data = JSON.parse(saved);
+                loginInput.value = data.login || '';
+                passInput.value = data.password || '';
+                remember.checked = true;
+            } catch(e) {}
+        }
+
+        document.getElementById('auth-form').addEventListener('submit', function() {
+            if (remember.checked) {
+                localStorage.setItem('ds_remember_user', JSON.stringify({
+                    login: loginInput.value,
+                    password: passInput.value
+                }));
+            } else {
+                localStorage.removeItem('ds_remember_user');
+            }
+        });
+    }
+
+    var mode = '{{ mode }}';
+    var theme = localStorage.getItem('ds-theme');
+    if (theme === 'light') {
+        document.getElementById('auth-body').classList.add('light-theme');
+        var icon = document.getElementById('auth-theme-icon');
+        if (icon) icon.classList.replace('fa-moon', 'fa-sun');
+    }
+})();
+
+function toggleAuthTheme() {
+    var body = document.getElementById('auth-body');
+    var icon = document.getElementById('auth-theme-icon');
+    var isLight = body.classList.toggle('light-theme');
+    localStorage.setItem('ds-theme', isLight ? 'light' : 'dark');
+    if (icon) {
+        if (isLight) {
+            icon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+            icon.classList.replace('fa-sun', 'fa-moon');
+        }
+    }
+}
+
+/* Flash messages as inline error */
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+document.addEventListener("DOMContentLoaded", function() {
+    var errBox = document.getElementById('auth-error');
+    var errMsg = document.getElementById('auth-error-msg');
+    {% for category, message in messages %}
+    errBox.className = 'auth-error show';
+    if ('{{ category }}' === 'error') {
+        errMsg.textContent = '{{ message }}';
+    } else if ('{{ category }}' === 'success') {
+        errBox.innerHTML = '<i class="fas fa-check-circle"></i> <span>' + '{{ message }}' + '</span>';
+        errBox.style.borderColor = 'rgba(16,185,129,0.2)';
+        errBox.style.background = 'rgba(16,185,129,0.1)';
+        errBox.style.color = '#6EE7B7';
+    }
+    {% endfor %}
+});
+{% endif %}
+{% endwith %}
+</script>
+
+<script>
+(function() {
+    var canvas = document.getElementById('premium-3d-data-canvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+
+    var isDark = !document.body.classList.contains('light-theme');
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(isDark ? 0x0a0e1a : 0xe2e8f0, 0.006);
+
+    var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 120);
+    camera.position.set(0, 5, 15);
+    camera.lookAt(0, 0, 0);
+
+    var renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        alpha: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(isDark ? 0x0a0e1a : 0xe2e8f0, 0);
+
+    var segments = 80;
+    var size = 50;
+    var geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    geometry.rotateX(-Math.PI / 2);
+
+    var origPos = geometry.attributes.position.array.slice();
+    var vertexCount = origPos.length / 3;
+
+    var wireColor = isDark ? 0x6d28d9 : 0x7c3aed;
+    var emissiveColor = isDark ? 0x7c3aed : 0x6366f1;
+    var pointColor = isDark ? 0xa78bfa : 0x818cf8;
+    var solidColor = isDark ? 0x3b0764 : 0xddd6fe;
+    var lineColor = isDark ? 0x4c1d95 : 0xa78bfa;
+
+    var wireMat = new THREE.MeshPhongMaterial({
+        color: wireColor,
+        wireframe: true,
+        emissive: emissiveColor,
+        emissiveIntensity: isDark ? 0.5 : 0.2,
+        transparent: true,
+        opacity: isDark ? 0.5 : 0.3
+    });
+
+    var waveMesh = new THREE.Mesh(geometry, wireMat);
+    waveMesh.receiveShadow = false;
+    scene.add(waveMesh);
+
+    var solidMat = new THREE.MeshPhongMaterial({
+        color: solidColor,
+        transparent: true,
+        opacity: isDark ? 0.12 : 0.08,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+
+    var solidMesh = new THREE.Mesh(geometry.clone(), solidMat);
+    solidMesh.position.y = -0.3;
+    scene.add(solidMesh);
+
+    var pointMat = new THREE.PointsMaterial({
+        color: pointColor,
+        size: 0.12,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: isDark ? 0.9 : 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    var points = new THREE.Points(geometry.clone(), pointMat);
+    scene.add(points);
+
+    var linePositions = [];
+    for (var ix = 0; ix < segments; ix += 3) {
+        for (var iz = 0; iz < segments; iz += 3) {
+            if (ix < segments - 2) linePositions.push(0, 0, 0, 0, 0, 0);
+            if (iz < segments - 2) linePositions.push(0, 0, 0, 0, 0, 0);
+        }
+    }
+
+    var lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+    var lineMat = new THREE.LineBasicMaterial({
+        color: lineColor,
+        transparent: true,
+        opacity: isDark ? 0.08 : 0.05
+    });
+    var lineSegments = new THREE.LineSegments(lineGeo, lineMat);
+    scene.add(lineSegments);
+
+    var particleCount = 400;
+    var pPos = new Float32Array(particleCount * 3);
+    var pSpeed = new Float32Array(particleCount);
+    var pSize = new Float32Array(particleCount);
+    for (var i = 0; i < particleCount; i++) {
+        pPos[i * 3] = (Math.random() - 0.5) * 50;
+        pPos[i * 3 + 1] = (Math.random() - 0.5) * 20;
+        pPos[i * 3 + 2] = (Math.random() - 0.5) * 50;
+        pSpeed[i] = 0.003 + Math.random() * 0.012;
+        pSize[i] = 0.04 + Math.random() * 0.08;
+    }
+    var pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+    var pMat = new THREE.PointsMaterial({
+        color: isDark ? 0x6366f1 : 0x818cf8,
+        size: 0.06,
+        transparent: true,
+        opacity: isDark ? 0.4 : 0.2,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var particles = new THREE.Points(pGeo, pMat);
+    scene.add(particles);
+
+    var dustCount = 400;
+    var dustPos = new Float32Array(dustCount * 3);
+    var dustColors = new Float32Array(dustCount * 3);
+    var dustSpeeds = new Float32Array(dustCount);
+    var dustPhases = new Float32Array(dustCount);
+    var cyan = new THREE.Color(0x00F3FF);
+    var purple = new THREE.Color(0x7842FF);
+    for (var i = 0; i < dustCount; i++) {
+        dustPos[i * 3] = (Math.random() - 0.5) * 1000;
+        dustPos[i * 3 + 1] = (Math.random() - 0.5) * 1000;
+        dustPos[i * 3 + 2] = (Math.random() - 0.5) * 1000;
+        dustSpeeds[i] = 0.02 + Math.random() * 0.06;
+        dustPhases[i] = Math.random() * Math.PI * 2;
+        var t = Math.random();
+        var c = cyan.clone().lerp(purple, t);
+        dustColors[i * 3] = c.r;
+        dustColors[i * 3 + 1] = c.g;
+        dustColors[i * 3 + 2] = c.b;
+    }
+    var dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
+    dustGeo.setAttribute('color', new THREE.Float32BufferAttribute(dustColors, 3));
+    var dustMat = new THREE.PointsMaterial({
+        size: 2.5,
+        vertexColors: THREE.VertexColors,
+        transparent: true,
+        opacity: 0.6,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var dustParticles = new THREE.Points(dustGeo, dustMat);
+    scene.add(dustParticles);
+
+    var glowMat = new THREE.PointsMaterial({
+        color: isDark ? 0x7c3aed : 0xa78bfa,
+        size: 0.3,
+        transparent: true,
+        opacity: isDark ? 0.12 : 0.06,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var glowPoints = new THREE.Points(geometry.clone(), glowMat);
+    scene.add(glowPoints);
+
+    var ambientLight = new THREE.AmbientLight(isDark ? 0x0f0a1e : 0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    var light1 = new THREE.PointLight(isDark ? 0x7c3aed : 0x6366f1, isDark ? 2.5 : 1.5, 60);
+    light1.position.set(0, 15, 0);
+    scene.add(light1);
+
+    var light2 = new THREE.PointLight(isDark ? 0x2563eb : 0x818cf8, isDark ? 1.5 : 0.8, 60);
+    light2.position.set(-20, 8, 20);
+    scene.add(light2);
+
+    var light3 = new THREE.PointLight(isDark ? 0x06b6d4 : 0x38bdf8, isDark ? 0.8 : 0.4, 60);
+    light3.position.set(20, 5, -20);
+    scene.add(light3);
+
+    var mouseX = 0, mouseY = 0;
+    document.addEventListener('mousemove', function(e) {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        var time = Date.now() * 0.0006;
+
+        var positions = geometry.attributes.position.array;
+        var solidPos = solidMesh.geometry.attributes.position.array;
+        var pointPos = points.geometry.attributes.position.array;
+        var glowPos = glowPoints.geometry.attributes.position.array;
+
+        for (var i = 0; i < positions.length; i += 3) {
+            var x = origPos[i];
+            var z = origPos[i + 2] || 0;
+            var dist = Math.sqrt(x * x + z * z);
+            var y = Math.sin(x * 0.25 + time * 0.7) * Math.cos(z * 0.25 + time * 0.5) * 2.5
+                  + Math.sin(dist * 0.5 - time * 1.1) * 1.2
+                  + Math.cos(x * 0.15 + z * 0.15 + time * 0.3) * 0.8;
+            positions[i + 1] = y;
+            solidPos[i + 1] = y;
+            pointPos[i + 1] = y;
+            glowPos[i + 1] = y;
+        }
+
+        geometry.attributes.position.needsUpdate = true;
+        solidMesh.geometry.attributes.position.needsUpdate = true;
+        points.geometry.attributes.position.needsUpdate = true;
+        glowPoints.geometry.attributes.position.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        var lp = lineGeo.attributes.position.array;
+        var li = 0;
+        for (var ix = 0; ix < segments; ix += 3) {
+            for (var iz = 0; iz < segments; iz += 3) {
+                var idx = (ix * (segments + 1) + iz) * 3;
+                if (ix < segments - 2) {
+                    var nidx = ((ix + 3) * (segments + 1) + iz) * 3;
+                    lp[li] = pointPos[idx]; lp[li + 1] = pointPos[idx + 1]; lp[li + 2] = pointPos[idx + 2];
+                    lp[li + 3] = pointPos[nidx]; lp[li + 4] = pointPos[nidx + 1]; lp[li + 5] = pointPos[nidx + 2];
+                    li += 6;
+                }
+                if (iz < segments - 2) {
+                    var nidx = (ix * (segments + 1) + (iz + 3)) * 3;
+                    lp[li] = pointPos[idx]; lp[li + 1] = pointPos[idx + 1]; lp[li + 2] = pointPos[idx + 2];
+                    lp[li + 3] = pointPos[nidx]; lp[li + 4] = pointPos[nidx + 1]; lp[li + 5] = pointPos[nidx + 2];
+                    li += 6;
+                }
+            }
+        }
+        lineGeo.attributes.position.needsUpdate = true;
+
+        var pp = particles.geometry.attributes.position.array;
+        for (var i = 0; i < particleCount; i++) {
+            pp[i * 3 + 1] += pSpeed[i];
+            if (pp[i * 3 + 1] > 12) {
+                pp[i * 3] = (Math.random() - 0.5) * 50;
+                pp[i * 3 + 1] = -12;
+                pp[i * 3 + 2] = (Math.random() - 0.5) * 50;
+            }
+        }
+        particles.geometry.attributes.position.needsUpdate = true;
+
+        var dp = dustParticles.geometry.attributes.position.array;
+        for (var i = 0; i < dustCount; i++) {
+            dp[i * 3 + 1] += dustSpeeds[i];
+            dp[i * 3] += Math.sin(Date.now() * 0.0005 + dustPhases[i]) * 0.008;
+            dp[i * 3 + 2] += Math.cos(Date.now() * 0.0005 + dustPhases[i]) * 0.008;
+            if (dp[i * 3 + 1] > 500) {
+                dp[i * 3] = (Math.random() - 0.5) * 1000;
+                dp[i * 3 + 1] = -500;
+                dp[i * 3 + 2] = (Math.random() - 0.5) * 1000;
+            }
+        }
+        dustParticles.geometry.attributes.position.needsUpdate = true;
+
+        var targetRotY = mouseX * 0.25;
+        var targetRotX = mouseY * 0.12;
+        waveMesh.rotation.y += (targetRotY - waveMesh.rotation.y + 0.002) * 0.02;
+        waveMesh.rotation.x += (targetRotX - waveMesh.rotation.x) * 0.02;
+        solidMesh.rotation.copy(waveMesh.rotation);
+        points.rotation.copy(waveMesh.rotation);
+        glowPoints.rotation.copy(waveMesh.rotation);
+        dustParticles.rotation.copy(waveMesh.rotation);
+        lineSegments.rotation.copy(waveMesh.rotation);
+        particles.rotation.y += 0.0004;
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+})();
+</script>
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+
+</body>
+</html>

@@ -17,12 +17,12 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
-    align-items: start;
+    align-items: stretch;
 }
 @media (max-width: 900px) { .upload-page-wrapper { grid-template-columns: 1fr; } }
 
 /* ── Left: Upload Card ── */
-.upload-card { padding: 32px; }
+.upload-card { padding: 32px; min-height: 380px; }
 
 .upload-card-header { margin-bottom: 24px; }
 .upload-card-header h3 {
@@ -181,7 +181,13 @@
 .upload-info-item i { color: var(--green); }
 
 /* ── Right: History Card ── */
-.history-card-wrap { padding: 24px; }
+.history-card-wrap {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+    overflow: hidden;
+}
 
 .history-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -196,12 +202,13 @@
     background: var(--blue-light); color: var(--blue);
     padding: 3px 10px; border-radius: 20px;
 }
-.history-subtext { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; }
+.history-subtext { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; flex-shrink: 0; }
 
 /* Search bar */
 .history-search-wrap {
     position: relative;
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 .history-search-wrap i {
     position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
@@ -222,12 +229,18 @@
 
 /* History list */
 .history-grid {
-    display: flex; flex-direction: column; gap: 10px;
-    max-height: 420px; overflow-y: auto;
-    padding-right: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
 }
+.history-grid::-webkit-scrollbar { width: 5px; }
+.history-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 .history-card {
     display: flex; align-items: center; gap: 14px;
@@ -328,8 +341,8 @@
 
 <!-- ── Page Header ── -->
 <div class="upload-page-header">
-    <h2><i class="fas fa-cloud-upload-alt text-blue"></i> Upload Dataset</h2>
-    <p>Upload your data file to begin automatic exploratory analysis</p>
+    <h2><i class="fas fa-cloud-upload-alt text-blue"></i> <span data-i18n="upload_title">Upload Dataset</span></h2>
+    <p data-i18n="upload_desc">Upload your data file to begin automatic exploratory analysis</p>
 </div>
 
 <div class="upload-page-wrapper">
@@ -337,8 +350,8 @@
     <!-- ═══════════════════ KIRI: UPLOAD FORM ═══════════════════ -->
     <div class="card upload-card">
         <div class="upload-card-header">
-            <h3><i class="fas fa-file-import text-blue"></i> Select Your File</h3>
-            <p>Drag &amp; drop or browse to upload. Max file size: 100 MB.</p>
+            <h3><i class="fas fa-file-import text-blue"></i> <span data-i18n="upload_card_title">Select Your File</span></h3>
+            <p data-i18n="upload_card_desc">Drag &amp; drop or browse to upload. Max file size: 100 MB.</p>
         </div>
 
         <!-- Format badges -->
@@ -358,13 +371,13 @@
                 <div class="dropzone-icon-wrap">
                     <i class="fas fa-cloud-upload-alt"></i>
                 </div>
-                <h3>Drag &amp; drop your file here</h3>
-                <p>Supported: .csv, .xlsx, .txt</p>
+                <h3 data-i18n="upload_dropzone">Drag &amp; drop your file here</h3>
+                <p data-i18n="upload_supported">Supported: .csv, .xlsx, .txt</p>
                 <input type="file" id="file-input" name="file"
                        accept=".csv, .xlsx, .txt" required hidden
                        onchange="handleFileSelect(this)">
                 <label class="btn-browse" onclick="event.stopPropagation();"
-                       for="file-input">
+                       for="file-input" data-i18n="upload_browse">
                     <i class="fas fa-folder-open"></i> Browse File
                 </label>
             </div>
@@ -378,15 +391,15 @@
             <!-- File preview info row -->
             <div class="file-preview-info" id="file-preview-info">
                 <div class="file-info-item">
-                    <span class="fi-label">File Name</span>
+                    <span class="fi-label" data-i18n="upload_filename">File Name</span>
                     <span class="fi-value" id="fi-name">—</span>
                 </div>
                 <div class="file-info-item">
-                    <span class="fi-label">File Size</span>
+                    <span class="fi-label" data-i18n="upload_filesize">File Size</span>
                     <span class="fi-value" id="fi-size">—</span>
                 </div>
                 <div class="file-info-item">
-                    <span class="fi-label">Format</span>
+                    <span class="fi-label" data-i18n="upload_format">Format</span>
                     <span class="fi-value" id="fi-type">—</span>
                 </div>
             </div>
@@ -399,33 +412,33 @@
             <!-- Submit button -->
             <button type="submit" class="btn-analyze" id="btn-submit" disabled>
                 <i class="fas fa-cogs"></i>
-                <span>Analyze Dataset</span>
+                <span data-i18n="upload_analyze">Analyze Dataset</span>
             </button>
         </form>
 
         <!-- Upload info hints -->
         <div class="upload-info-row">
-            <span class="upload-info-item"><i class="fas fa-shield-alt"></i> Secure upload</span>
-            <span class="upload-info-item"><i class="fas fa-bolt"></i> Auto-EDA in seconds</span>
-            <span class="upload-info-item"><i class="fas fa-database"></i> Max 100 MB</span>
+            <span class="upload-info-item"><i class="fas fa-shield-alt"></i> <span data-i18n="upload_secure">Secure upload</span></span>
+            <span class="upload-info-item"><i class="fas fa-bolt"></i> <span data-i18n="upload_autoeda">Auto-EDA in seconds</span></span>
+            <span class="upload-info-item"><i class="fas fa-database"></i> <span data-i18n="upload_maxsize">Max 100 MB</span></span>
         </div>
 
         <!-- Tip card -->
         <div class="tip-card">
             <i class="fas fa-lightbulb"></i>
-            <p><strong>Pro tip:</strong> For best results, ensure your CSV uses comma delimiters and the first row contains column headers. Datetime columns are auto-detected for time series analysis.</p>
+            <p data-i18n="upload_protip"><strong>Pro tip:</strong> For best results, ensure your CSV uses comma delimiters and the first row contains column headers. Datetime columns are auto-detected for time series analysis.</p>
         </div>
     </div>
 
     <!-- ═══════════════════ KANAN: HISTORY ═══════════════════ -->
     <div class="card history-card-wrap">
         <div class="history-header">
-            <h3><i class="fas fa-history text-purple"></i> Recent Datasets</h3>
+            <h3><i class="fas fa-history text-purple"></i> <span data-i18n="upload_history">Recent Datasets</span></h3>
             {% if history %}
             <span class="history-count">{{ history|length }} file{{ 's' if history|length != 1 else '' }}</span>
             {% endif %}
         </div>
-        <p class="history-subtext">Click any previous dataset to instantly reload its analysis.</p>
+        <p class="history-subtext" data-i18n="upload_history_desc">Click any previous dataset to instantly reload its analysis.</p>
 
         {% if history %}
         <!-- Search -->
@@ -433,6 +446,7 @@
             <i class="fas fa-search"></i>
             <input type="text" class="history-search" id="history-search"
                    placeholder="Search datasets..."
+                   data-i18n-placeholder="upload_search"
                    oninput="filterHistory(this.value)">
         </div>
 
@@ -455,7 +469,7 @@
                 <div class="hist-details">
                     <h4 title="{{ file }}">{{ file }}</h4>
                     <div class="hist-meta">
-                        <span class="badge-analyzed"><i class="fas fa-check-circle"></i> Analyzed</span>
+                        <span class="badge-analyzed"><i class="fas fa-check-circle"></i> <span data-i18n="upload_analyzed">Analyzed</span></span>
                         <span class="text-muted" style="font-size:0.72rem;">{{ ext|upper }}</span>
                     </div>
                 </div>
@@ -469,8 +483,8 @@
         <!-- Empty state -->
         <div class="empty-history">
             <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
-            <h4>No datasets yet</h4>
-            <p>Upload your first dataset to get started.<br>It will appear here for quick access.</p>
+            <h4 data-i18n="upload_no_files">No datasets yet</h4>
+            <p data-i18n="upload_no_files_desc">Upload your first dataset to get started.<br>It will appear here for quick access.</p>
         </div>
         {% endif %}
     </div>

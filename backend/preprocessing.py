@@ -115,20 +115,137 @@ def _try_numeric_conversion(series):
     return None
 
 
-def detect_data_types(df):
+def _parsed_dates_plausible(parsed_series):
+    """
+    Validasi bahwa hasil parsing datetime masuk akal (bukan false positive).
+    False positive terjadi ketika pd.to_datetime() menginterpretasi angka kecil
+    (tahun, bulan, hari, durasi) sebagai epoch sekon → semuanya jadi tahun 1970.
+    """
+    if parsed_series.empty:
+        return False
+    min_date = parsed_series.min()
+    max_date = parsed_series.max()
+    # Jika semua hasil parse berada di tahun 1970, hampir pasti false positive
+    if min_date.year == 1970 and max_date.year == 1970:
+        return False
+    # Jika rentang kurang dari 1 sekon, dianggap noise
+    if (max_date - min_date).total_seconds() < 1:
+        return False
+    return True
+
+
+def detect_time_series_cols(df):
+    """
+    Smart Time-Series column detector.
+    Memeriksa kolom berdasarkan:
+       1. Nama kolom mengandung keyword waktu (date, time, tgl, dll)
+          DAN berhasil dikonversi via pd.to_datetime()
+       2. Sudah bertipe datetime64
+       3. Numeric timestamp (epoch seconds)
+
+    Returns:
+        list[str]: Nama kolom yang terdeteksi sebagai time-series.
+    """
+    ts_cols = []
+
+    # Keyword waktu — komponen kalender saja TIDAK termasuk (year, month, day, dll)
+    # karena kolom seperti "Year" / "Month" berisi angka kecil yang akan
+    # menghasilkan false positive saat di-parse sebagai datetime.
+    TS_KEYWORDS = [
+        'date', 'time', 'tanggal', 'waktu', 'tgl', 'dt_',
+        'timestamp', 'datetime', 'created', 'updated',
+        'order_date', 'order_datetime', 'invoice_date',
+        'transaksi', 'transaction', 'periode', 'period',
+        'arrival', 'departure', 'check_in', 'check_out',
+        'start_date', 'end_date', 'due_date', 'birth',
+        'lahir', 'expired', 'expiry',
+    ]
+
+    for col in df.columns:
+        series = df[col]
+        s = series.dropna()
+        if s.empty:
+            continue
+
+        # 1. Sudah datetime64
+        if pd.api.types.is_datetime64_any_dtype(series):
+            ts_cols.append(col)
+            continue
+
+        # 2. Nama mengandung keyword waktu → coba parse
+        col_lower = col.lower().replace(' ', '_').replace('-', '_')
+        if any(kw in col_lower for kw in TS_KEYWORDS):
+            sample = s.head(500)
+            try:
+                parsed = pd.to_datetime(sample, errors='coerce')
+                if parsed.notna().mean() >= 0.40:
+                    # Validasi: pastikan bukan false positive (tahun, bulan, durasi)
+                    if _parsed_dates_plausible(parsed):
+                        ts_cols.append(col)
+                        continue
+            except Exception:
+                pass
+
+        # 3. Object/string — coba parse langsung (tanpa keyword waktu)
+        if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+            sample = s.head(200)
+            # Lewati jika sample berisi angka semua (sudah ditangani numerik)
+            if sample.dtype == 'object' and sample.str.match(r'^\d+\.?\d*$').mean() > 0.8:
+                continue
+            try:
+                parsed = pd.to_datetime(sample, errors='coerce')
+                if parsed.notna().mean() >= 0.70:
+                    if _parsed_dates_plausible(parsed):
+                        ts_cols.append(col)
+                        continue
+            except Exception:
+                pass
+
+        # 4. Numeric — coba sebagai epoch seconds (hanya jika nilai masuk akal)
+        if pd.api.types.is_numeric_dtype(series):
+            vmax = float(s.max())
+            vmin = float(s.min())
+            # Epoch seconds biasanya di atas 1e8 (tahun 1973+) dan di bawah 2e9 (tahun 2033)
+            # Epoch milliseconds di atas 1e11 dan di bawah 2e12
+            is_plausible_epoch = (
+                (1e8 < vmax < 2e10) or          # seconds range
+                (1e11 < vmax < 2e13)             # milliseconds range
+            )
+            if not is_plausible_epoch:
+                continue
+            units = ['s', 'ms']
+            for unit in units:
+                try:
+                    parsed = pd.to_datetime(s.head(200), unit=unit, errors='coerce')
+                    if parsed.notna().mean() >= 0.90:
+                        if _parsed_dates_plausible(parsed):
+                            ts_cols.append(col)
+                            break
+                except Exception:
+                    continue
+
+    return ts_cols
+
+
+def detect_data_types(df, time_series_cols=None):
     """
     Klasifikasi kolom menjadi numerik dan kategorik secara cerdas.
+    
+    Args:
+        df: DataFrame
+        time_series_cols: List kolom time-series (akan dikeluarkan dari num & cat).
     
     Returns:
         num_cols (list): Kolom yang bermakna untuk analisis numerik/statistik
         cat_cols (list): Kolom kategorik (termasuk numerik yang bersifat kategorik)
     
     Kolom yang dikeluarkan dari keduanya:
-        - Kolom datetime (ditangani time_series.py)
+        - Kolom datetime / time-series
         - Kolom ID/index murni
         - Kolom dengan semua nilai kosong
     """
     n_rows   = len(df)
+    ts_set   = set(time_series_cols or [])
     num_cols = []
     cat_cols = []
 
@@ -139,8 +256,8 @@ def detect_data_types(df):
         if series.isna().all():
             continue
 
-        # ── Skip kolom datetime ───────────────────────────────────────────────
-        if pd.api.types.is_datetime64_any_dtype(series):
+        # ── Skip kolom datetime / time-series ─────────────────────────────────
+        if col in ts_set or pd.api.types.is_datetime64_any_dtype(series):
             continue
 
         # ── Skip kolom boolean → masuk cat ───────────────────────────────────
@@ -156,7 +273,6 @@ def detect_data_types(df):
 
             # Cek apakah numerik ini sebenarnya kategorik
             if _looks_categorical(series, col, n_rows):
-                # Konversi ke string supaya bisa dipakai sebagai kategori
                 cat_cols.append(col)
             else:
                 num_cols.append(col)
@@ -173,8 +289,6 @@ def detect_data_types(df):
                 if _looks_categorical(converted, col, n_rows):
                     cat_cols.append(col)
                 else:
-                    # Kolom ini sebenarnya numerik, tapi simpan nama aslinya
-                    # (konversi dilakukan di viz_engine saat dibutuhkan)
                     num_cols.append(col)
             else:
                 # Gagal dikonversi → kategorik
@@ -182,7 +296,6 @@ def detect_data_types(df):
                 n_unique     = series.nunique()
                 unique_ratio = n_unique / max(n_rows, 1)
                 if unique_ratio > 0.95 and n_unique > 50:
-                    # Hampir semua nilai unik → kemungkinan free text, skip
                     continue
                 cat_cols.append(col)
             continue

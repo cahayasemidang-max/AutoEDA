@@ -94,6 +94,23 @@ def clean_dataset(df, options=None):
         df.columns = new_cols
         log.append('Column names trimmed')
 
+    # Auto-detect dan parse kolom datetime (sebelum operasi lain)
+    datetime_converted = 0
+    for col in df.select_dtypes(include=['object', 'string']).columns:
+        non_null = df[col].dropna()
+        if non_null.empty:
+            continue
+        sample = non_null.head(200)
+        try:
+            parsed = pd.to_datetime(sample, errors='coerce')
+            if parsed.notna().mean() >= 0.40:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+                datetime_converted += 1
+        except Exception:
+            pass
+    if datetime_converted:
+        log.append(f'Auto-converted {datetime_converted} column(s) to datetime')
+
     # Strip whitespace pada kolom teks
     if opts['strip_whitespace']:
         for col in df.select_dtypes(include=['object', 'string']).columns:

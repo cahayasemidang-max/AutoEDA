@@ -2,20 +2,6 @@
 {% block content %}
 
 <style>
-/* ── Viz sub-tab nav ── */
-.viz-subtab-nav { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
-.viz-subtab-btn {
-    padding:7px 16px; border-radius:8px; border:1px solid var(--border);
-    background:var(--bg); color:var(--muted);
-    font-size:.78rem; font-weight:600; cursor:pointer;
-    transition:all .2s ease; font-family:inherit;
-}
-.viz-subtab-btn:hover { border-color:var(--blue); color:var(--text); }
-.viz-subtab-btn.active {
-    background:var(--blue); color:#fff; border-color:var(--blue);
-    box-shadow:0 3px 12px rgba(67,24,255,.28);
-}
-
 /* ── TS meta strip ── */
 .ts-meta-strip {
     display:flex; gap:20px; flex-wrap:wrap;
@@ -43,7 +29,8 @@
 }
 .ov-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 960px) { .ov-stats-grid { grid-template-columns: 1fr; } }
-.ov-stats-card { display: none; }
+.ov-stats-card { display: flex; flex-direction: column; min-width: 0; cursor: pointer; transition: box-shadow .2s, transform .2s; }
+.ov-stats-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.06); transform: translateY(-2px); }
 .ov-stats-card-header {
     padding: 14px 18px 10px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -54,22 +41,10 @@
 }
 .ov-stats-card-header small { font-size: 0.7rem; color: var(--muted); }
 .ov-stats-table-wrap {
-    display: none; overflow-x: auto; padding: 10px 14px 14px;
-    max-height: 300px; overflow-y: auto;
+    overflow-x: auto; flex: 1;
+    max-height: 280px; overflow-y: auto;
     scrollbar-width: thin; scrollbar-color: var(--border) transparent;
 }
-.ov-stats-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; }
-.ov-stats-table thead th {
-    padding: 7px 12px; background: var(--bg); color: var(--text);
-    font-weight: 700; font-size: 0.7rem; text-transform: uppercase;
-    letter-spacing: 0.3px; border-bottom: 2px solid var(--border);
-    text-align: left; position: sticky; top: 0; z-index: 1;
-}
-.ov-stats-table tbody td {
-    padding: 6px 12px; border-bottom: 1px solid var(--border);
-    color: var(--text); vertical-align: middle;
-}
-.ov-stats-table tbody tr:hover td { background: var(--bg); }
 .ov-td-col    { color: var(--blue) !important; font-weight: 600; }
 .ov-td-warn   { color: #b8860b !important; font-weight: 600; }
 .ov-td-danger { color: var(--red) !important; font-weight: 700; }
@@ -218,8 +193,488 @@
     from { transform: translateY(0); opacity: 1; }
     to { transform: translateY(-30px); opacity: 0; }
 }
-</style>
+@keyframes ai-spin { to { transform: rotate(360deg); } }
 
+/* ── AI Interpretation ── */
+.interpretation-body { width:100%; }
+.interpretation-body .card { border-radius:14px;overflow:hidden; }
+.interpretation-state-card { transition:opacity .25s;padding:64px 48px;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+.interpretation-state-card .state-icon { font-size:3.2rem;margin-bottom:20px;display:block; }
+.interpretation-state-card h3 { margin-bottom:10px;font-size:1.15rem;color:var(--text); }
+.interpretation-state-card p { max-width:500px;margin:0 auto 28px;font-size:.85rem;color:var(--muted);line-height:1.6; }
+
+/* Spinner */
+.interpretation-spinner {
+    width:52px;height:52px;border:4px solid var(--border);
+    border-top-color:#7c3aed;border-radius:50%;
+    animation:ai-spin .8s linear infinite;
+    margin:0 auto 24px;
+}
+
+/* Buttons */
+.interpretation-btn {
+    display:inline-flex;align-items:center;gap:10px;
+    padding:13px 34px;border-radius:10px;
+    font-weight:700;font-size:.88rem;
+    cursor:pointer;border:none;font-family:inherit;
+    transition:all .2s ease;text-decoration:none;
+    letter-spacing:.2px;
+}
+.interpretation-btn-primary {
+    background:linear-gradient(135deg,#7c3aed,#6d28d9);
+    color:#fff;box-shadow:0 4px 20px rgba(124,58,237,.3);
+}
+.interpretation-btn-primary:hover { transform:translateY(-2px);box-shadow:0 8px 30px rgba(124,58,237,.4); }
+.interpretation-btn-primary:active { transform:translateY(0); }
+.interpretation-btn-secondary {
+    background:var(--card-bg);color:var(--text);
+    border:1.5px solid var(--border);padding:11px 28px;
+}
+.interpretation-btn-secondary:hover { border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.05); }
+
+/* Result card sections */
+.interpretation-result-card { padding:36px; }
+.interpretation-result-card .section-title {
+    color:var(--text);margin-bottom:14px;
+    font-size:.92rem;font-weight:700;
+    display:flex;align-items:center;gap:8px;
+}
+.interpretation-result-card .section-title i { color:#7c3aed;font-size:.95rem; }
+.interpretation-result-card .section-content {
+    background:var(--bg);border-radius:10px;
+    padding:20px 24px;border:1px solid var(--border);
+    line-height:1.8;font-size:.85rem;color:var(--text);
+}
+.interpretation-result-card .section-content p { margin:0; }
+.interpretation-result-card .section-content ul { margin:0;padding-left:20px; }
+.interpretation-result-card .section-content li { margin-bottom:8px; }
+.interpretation-result-card .section-content strong { color:#7c3aed; }
+.interpretation-result-card .section-gap { margin-bottom:24px; }
+
+.interpretation-result-footer {
+    margin-top:28px;padding-top:20px;
+    border-top:1px solid var(--border);
+    text-align:right;
+}
+
+/* Quota state accent */
+.interpretation-quota-card { border-left:4px solid var(--orange); }
+.interpretation-quota-card .state-icon { color:var(--orange); }
+.interpretation-quota-card .quota-timer { font-weight:700;color:var(--orange);margin-top:8px; }
+
+/* ═══════════════════════════════════════════════
+   EXECUTIVE DASHBOARD v3
+   ═══════════════════════════════════════════════ */
+
+/* ── Raw-data warning banner ── */
+.ov-raw-warning {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; border-radius: 10px;
+    margin-bottom: 18px;
+    background: rgba(245,158,11,.1);
+    border: 1.5px solid rgba(245,158,11,.35);
+    color: var(--text);
+    font-size: .82rem;
+}
+.ov-raw-warning i { color: #f59e0b; font-size: 1rem; }
+.ov-raw-warning strong { color: #f59e0b; font-weight: 700; }
+.ov-raw-warning-btn {
+    margin-left: auto; padding: 6px 16px; border-radius: 8px; border: none;
+    background: #f59e0b; color: #1a1a2e; font-size: .75rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; white-space: nowrap; transition: .15s;
+}
+.ov-raw-warning-btn:hover { opacity: .85; }
+
+/* ── Smart Dynamic Viz Grid ──
+ *
+ *  repeat(auto-fit, minmax(300px, 1fr))  →  auto-column grid
+ *  • auto-fit  :  menghapus kolom kosong otomatis
+ *  • minmax(300px,1fr)  :  tiap kolom minimal 300px, maksimal bisa melebar
+ *
+ *  Hasil: jumlah kolom menyesuaikan lebar container secara otomatis.
+ *  Baris terakhir dengan item ganjil akan di-expand oleh JS balanceVizGrid().
+ */
+.ov-viz-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(max(300px, calc((100% - 28px) / 3)), 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+/* 6 charts → 3 columns exactly (2 rows). 5 charts → 3 columns w/ last row centered */
+.ov-viz-6 { grid-template-columns: repeat(3, 1fr); }
+.ov-viz-5 { grid-template-columns: repeat(3, 1fr); }
+.ov-chart-slot { overflow: hidden; cursor: pointer; }
+.ov-chart-slot:hover { box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+.ov-chart-area {
+    width: 100%; min-height: 200px;
+    overflow: hidden; position: relative;
+}
+.ov-chart-area .js-plotly-plot, .ov-chart-area .plot-container {
+    width: 100% !important; height: 100% !important;
+}
+.ov-toggle-select {
+    padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    font-size: .75rem; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.ov-toggle-wrap {
+    padding: 6px 16px 8px; display: flex; align-items: center; gap: 6px;
+    font-size: .72rem; font-weight: 600; color: var(--muted);
+}
+
+/* ── Smart Insight card under each chart ── */
+.ov-smart-insight {
+    padding: 8px 12px 10px;
+    border-top: 1px solid var(--border);
+    background: rgba(67,24,255,.03);
+    display: flex; flex-direction: column; gap: 4px;
+}
+.ov-smart-insight-item {
+    display: flex; align-items: flex-start; gap: 6px;
+    font-size: .72rem; color: var(--text); line-height: 1.45;
+}
+.ov-smart-insight-item i {
+    flex-shrink: 0; margin-top: 2px;
+    width: 14px; text-align: center;
+}
+.ov-smart-insight-label {
+    font-size: .65rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .4px;
+}
+
+/* ── Insight KPI Cards ── */
+.insight-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+@media (max-width: 600px) {
+    .insight-kpi-row { grid-template-columns: 1fr; }
+}
+.insight-kpi-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    transition: box-shadow .2s, transform .2s;
+}
+.insight-kpi-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    transform: translateY(-2px);
+}
+.insight-kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+.insight-kpi-card.blue .insight-kpi-icon { background: rgba(37,99,235,.12); color: #2563eb; }
+.insight-kpi-card.green .insight-kpi-icon { background: rgba(5,150,105,.12); color: #059669; }
+.insight-kpi-card.orange .insight-kpi-icon { background: rgba(234,88,12,.12); color: #ea580c; }
+.insight-kpi-card.red .insight-kpi-icon { background: rgba(220,38,38,.12); color: #dc2626; }
+.insight-kpi-card.purple .insight-kpi-icon { background: rgba(124,58,237,.12); color: #7c3aed; }
+[data-theme="dark"] .insight-kpi-card.blue .insight-kpi-icon { background: rgba(37,99,235,.18); color: #93c5fd; }
+[data-theme="dark"] .insight-kpi-card.green .insight-kpi-icon { background: rgba(5,150,105,.18); color: #6ee7b7; }
+[data-theme="dark"] .insight-kpi-card.orange .insight-kpi-icon { background: rgba(234,88,12,.18); color: #fdba74; }
+[data-theme="dark"] .insight-kpi-card.red .insight-kpi-icon { background: rgba(220,38,38,.18); color: #fca5a5; }
+[data-theme="dark"] .insight-kpi-card.purple .insight-kpi-icon { background: rgba(124,58,237,.18); color: #c4b5fd; }
+.insight-kpi-body { flex: 1; min-width: 0; }
+.insight-kpi-value { font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1.3; }
+.insight-kpi-label {
+    font-size: .68rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .4px; margin-top: 2px;
+}
+.insight-kpi-sub { font-size: .66rem; color: var(--muted); margin-top: 3px; font-weight: 500; }
+
+/* ── Preview row (3 tabel sejajar) ── */
+.ov-preview-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: stretch;
+}
+.ov-preview-card { display: flex; flex-direction: column; min-width: 0; cursor: pointer; transition: box-shadow .2s, transform .2s; }
+.ov-preview-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.06); transform: translateY(-2px); }
+.ov-preview-card .ov-preview-table-wrap {
+    overflow-x: auto; flex: 1;
+    max-height: 280px; overflow-y: auto;
+    scrollbar-width: thin;
+}
+.ov-stats-card .ov-stats-table-wrap {
+    overflow-x: auto; flex: 1;
+    max-height: 280px; overflow-y: auto;
+    scrollbar-width: thin;
+}
+.ov-preview-card table { width: 100%; font-size: .72rem; white-space: nowrap; }
+.ov-preview-card table th,
+.ov-preview-card table td { padding: 4px 8px; }
+@media (max-width: 1100px) { .ov-preview-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px)  { .ov-preview-row { grid-template-columns: 1fr; } }
+
+/* ── Section ── */
+.ov-section { margin-top: 24px; }
+.ov-section-header {
+    font-size: .95rem; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.ov-section-sub { font-size: .72rem; color: var(--muted); font-weight: 400; }
+
+/* ── Recommendations Grid ── */
+.ov-rec-grid { display: grid; gap: 10px; }
+.ov-rec-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 18px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card-bg);
+    transition: box-shadow .15s;
+}
+.ov-rec-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.05); }
+.ov-rec-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem; flex-shrink: 0;
+}
+.ov-rec-ok .ov-rec-icon { background: #d1fae5; color: #059669; }
+.ov-rec-low .ov-rec-icon { background: #dbeafe; color: #2563eb; }
+.ov-rec-medium .ov-rec-icon { background: #ffedd5; color: #ea580c; }
+.ov-rec-high .ov-rec-icon { background: #fee2e2; color: #dc2626; }
+.ov-rec-ok { border-left: 3px solid #059669; }
+.ov-rec-low { border-left: 3px solid #2563eb; }
+.ov-rec-medium { border-left: 3px solid #ea580c; }
+.ov-rec-high { border-left: 3px solid #dc2626; }
+.ov-rec-body { flex: 1; min-width: 0; }
+.ov-rec-title { font-size: .85rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.ov-rec-detail { font-size: .75rem; color: var(--muted); line-height: 1.4; }
+.ov-rec-btn {
+    flex-shrink: 0; padding: 5px 14px; border-radius: 7px; border: none;
+    font-size: .72rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    background: var(--bg); color: var(--blue); transition: .15s;
+}
+.ov-rec-btn:hover { background: var(--blue); color: #fff; }
+
+/* ── Insights Grid ── */
+.ov-insights-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 960px) { .ov-insights-grid { grid-template-columns: 1fr; } }
+.insight-card {
+    border-left: 4px solid var(--blue);
+    margin-bottom: 0;
+}
+
+/* ── Collapsible sections ── */
+.ov-collapse-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+    border-radius: 10px; background: var(--card-bg);
+    border: 1px solid var(--border); transition: .2s;
+    font-size: .92rem; font-weight: 700; color: var(--text);
+    margin-bottom: 0;
+}
+.ov-collapse-header:hover { border-color: var(--blue); }
+.ov-collapse-header .collapse-icon {
+    margin-left: auto; font-size: .85rem; color: var(--muted);
+    transition: transform .25s ease;
+}
+.ov-collapse-header.open .collapse-icon { transform: rotate(180deg); }
+.ov-collapse-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease, margin .35s ease;
+    padding: 0 4px; margin: 0;
+}
+.ov-collapse-body.open {
+    max-height: 2000px;
+    padding: 14px 4px 4px; margin: 4px 0 14px;
+}
+.ov-collapse-body-inner { overflow: hidden; }
+
+/* ── Modern striped table ── */
+.ov-stats-table {
+    width: 100%; border-collapse: collapse;
+    font-size: .78rem; white-space: nowrap;
+}
+.ov-stats-table thead th {
+    padding: 8px 12px; background: #f1f5f9;
+    color: #334155; font-weight: 700; font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .4px;
+    border-bottom: 2px solid #e2e8f0; text-align: left;
+    position: sticky; top: 0; z-index: 1;
+}
+[data-theme="dark"] .ov-stats-table thead th {
+    background: #1e293b; color: #94a3b8; border-bottom-color: #334155;
+}
+.ov-stats-table tbody tr:nth-child(even) { background: #f8fafc; }
+[data-theme="dark"] .ov-stats-table tbody tr:nth-child(even) { background: rgba(30,41,59,.4); }
+.ov-stats-table tbody tr:hover { background: #e0f2fe !important; }
+[data-theme="dark"] .ov-stats-table tbody tr:hover { background: rgba(56,189,248,.1) !important; }
+.ov-stats-table tbody td {
+    padding: 6px 12px; border-bottom: 1px solid #e2e8f0;
+    color: var(--text); vertical-align: middle;
+}
+[data-theme="dark"] .ov-stats-table tbody td { border-bottom-color: #334155; }
+
+/* ── Quick Summary mini-KPI row ── */
+.ov-quick-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px; margin-bottom: 12px;
+}
+.ov-qs-card {
+    padding: 10px 12px; border-radius: 8px;
+    background: var(--card-bg); border: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+    text-align: center;
+}
+.ov-qs-label {
+    font-size: .6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .3px; color: var(--muted);
+}
+.ov-qs-value {
+    font-size: .9rem; font-weight: 800; color: var(--text);
+}
+.ov-qs-value .num-badge {
+    display: inline-block; padding: 1px 7px; border-radius: 4px;
+    font-size: .65rem; font-weight: 700; margin-left: 4px;
+}
+.ov-qs-value .num-badge.numeric { background: #dbeafe; color: #2563eb; }
+.ov-qs-value .num-badge.categorical { background: #e9d5ff; color: #7c3aed; }
+.ov-qs-value .num-badge.datetime { background: #d1fae5; color: #059669; }
+
+/* ── Data Profile Strip (compact) ── */
+.ov-data-profile {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 8px 16px; border-radius: 8px;
+    background: var(--card-bg); border: 1px solid var(--border);
+    margin-bottom: 14px; font-size: .78rem;
+}
+.ov-data-profile .ov-dp-item {
+    display: flex; align-items: center; gap: 5px;
+    color: var(--text-secondary);
+}
+.ov-data-profile .ov-dp-item i { font-size: .75rem; width: 16px; text-align: center; }
+.ov-data-profile .ov-dp-sep { color: var(--border); font-size: .7rem; }
+.ov-data-profile .ov-dp-badge {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    font-size: .65rem; font-weight: 700;
+}
+.ov-dp-badge.num   { background: #dbeafe; color: #2563eb; }
+.ov-dp-badge.cat   { background: #e9d5ff; color: #7c3aed; }
+.ov-dp-badge.dt    { background: #d1fae5; color: #059669; }
+.ov-dp-badge.miss  { background: #fee2e2; color: #dc2626; }
+.ov-dp-badge.ok    { background: #d1fae5; color: #059669; }
+
+/* ── Insight Detail Modal ── */
+.ov-insight-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 10000;
+    background: rgba(4,11,24,0.6); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+}
+.ov-insight-modal {
+    background: var(--card-bg); border-radius: 14px;
+    max-width: 520px; width: 90%; padding: 24px 28px;
+    box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+    position: relative; max-height: 80vh; overflow-y: auto;
+}
+.ov-insight-modal-close {
+    position: absolute; top: 12px; right: 14px;
+    background: none; border: none; color: var(--muted);
+    font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+    border-radius: 6px; transition: .15s;
+}
+.ov-insight-modal-close:hover { background: var(--bg); color: var(--text); }
+.ov-insight-modal-icon {
+    font-size: 1.6rem; margin-bottom: 8px;
+}
+.ov-insight-modal-title {
+    font-size: 1rem; font-weight: 800; color: var(--text);
+    margin-bottom: 10px; line-height: 1.4;
+}
+.ov-insight-modal-desc {
+    font-size: .85rem; color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+/* ── Key Findings Strip (compact) ── */
+.ov-kf-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: .7rem; font-weight: 600;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer;
+    transition: all .15s;
+    max-width: 180px;
+}
+.ov-kf-pill:hover { background: var(--card-bg); border-color: var(--blue); box-shadow: 0 1px 6px rgba(55,138,221,0.15); }
+.ov-kf-pill:active { transform: scale(0.97); }
+.ov-kf-pill i { font-size: .65rem; flex-shrink: 0; }
+.ov-kf-pill-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ov-key-findings {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 14px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--card-bg), var(--bg));
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+.ov-key-findings-label {
+    font-size: .6rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--muted); white-space: nowrap;
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+
+/* ── DataTable wrapper ── */
+.ov-stats-table-wrap {
+    overflow-x: auto; padding: 0;
+    max-height: 360px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.ov-stats-table-wrap table.dataTable { margin: 0 !important; }
+.ov-stats-table-wrap .dataTables_wrapper .dataTables_filter { float: none; text-align: right; margin-bottom: 8px; }
+.ov-stats-table-wrap .dataTables_wrapper .dataTables_filter input {
+    padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: .78rem;
+    font-family: inherit; outline: none; margin-left: 6px;
+}
+.ov-stats-table-wrap .dataTables_wrapper .dataTables_filter input:focus { border-color: var(--blue); }
+.ov-stats-table-wrap .dataTables_wrapper .dataTables_length { float: none; margin-bottom: 8px; }
+.ov-stats-table-wrap .dataTables_wrapper .dataTables_length select {
+    padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);
+    font-size: .75rem; font-family: inherit;
+}
+.ov-stats-table-wrap .dataTables_info { font-size: .7rem; color: var(--muted); padding: 6px 0; }
+.ov-stats-table-wrap .dataTables_paginate { font-size: .75rem; }
+.ov-stats-table-wrap .dataTables_paginate .paginate_button {
+    padding: 3px 10px !important; margin: 0 2px !important;
+    border-radius: 6px !important; border: 1px solid var(--border) !important;
+    background: var(--bg) !important; color: var(--text) !important;
+    font-size: .72rem !important;
+}
+.ov-stats-table-wrap .dataTables_paginate .paginate_button.current {
+    background: var(--blue) !important; color: #fff !important; border-color: var(--blue) !important;
+}
+
+/* ── Compact KPI row ── */
+.insight-kpi-row { gap: 10px; }
+.insight-kpi-card { padding: 12px 14px; }
+.insight-kpi-icon { width: 32px; height: 32px; font-size: .85rem; }
+.insight-kpi-value { font-size: 1rem; }
+
+/* ── Section spacing ── */
+.ov-section-compact { margin-top: 14px; }
+
+/* ── Utility ── */
+.mt-3 { margin-top: 16px; }
+</style>
 
 <!-- ══════════════ GLOBAL BANNERS ══════════════ -->
 <div id="db-banner-warning" class="db-global-banner warning" style="display:none;">
@@ -228,7 +683,7 @@
         ⚠️ Warning data perlu di cleaning!
         {% if quality_full and quality_full.warnings %}{{ quality_full.warnings[0] }}{% endif %}
     </span>
-    <button class="db-banner-cta" onclick="switchTab('cleaning')" data-translate="banner_clean_btn">
+    <button class="db-banner-cta" onclick="switchTab('cleaning')" data-i18n="banner_clean_btn">
         <i class="fas fa-broom"></i> Bersihkan Sekarang
     </button>
     <button class="db-banner-close" onclick="this.closest('.db-global-banner').style.display='none'">
@@ -237,8 +692,8 @@
 </div>
 <div id="db-banner-success" class="db-global-banner success" style="display:none;">
     <i class="fas fa-check-circle"></i>
-    <span class="db-banner-msg" data-translate="banner_success">✅ Berhasil melakukan cleaning! Data siap digunakan.</span>
-    <button class="db-banner-cta" onclick="switchTab('visualizations')" data-translate="banner_viz_btn">
+    <span class="db-banner-msg" data-i18n="banner_success">✅ Berhasil melakukan cleaning! Data siap digunakan.</span>
+    <button class="db-banner-cta" onclick="switchTab('visualizations')" data-i18n="banner_viz_btn">
         <i class="fas fa-chart-bar"></i> Lihat Visualisasi
     </button>
     <button class="db-banner-close" onclick="this.closest('.db-global-banner').style.display='none'">
@@ -247,446 +702,823 @@
 </div>
 
 
-<!-- ══════════════ TAB 1: OVERVIEW ══════════════ -->
-<div id="tab-overview" class="tab-content active-tab">
-    <div class="dashboard-header mb-4">
+<!-- ══════════════ TAB 1: OVERVIEW — EXECUTIVE DASHBOARD ══════════════ -->
+<div id="tab-overview" class="tab-content active-tab" style="display:none;">
+    <div class="dashboard-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
         <div>
-            <h2><i class="fas fa-chart-pie text-blue"></i> Dashboard</h2>
-            <p class="text-muted">{{ filename }} · {{ dataset_info.size }} · {{ dataset_info.time }}</p>
+            <h2 style="font-size:1.15rem;font-weight:800;color:var(--text);margin:0;" data-i18n="ov_executive_title">
+                <i class="fas fa-chart-pie" style="color:var(--blue);"></i> Executive Dashboard
+            </h2>
+            <p style="font-size:.78rem;color:var(--muted);margin:4px 0 0;">
+                {{ filename }} · {{ dataset_info.size }} · {{ dataset_info.time }}
+                {% if overview.dataset_type %} · <span class="badge badge-info">{{ overview.dataset_type|capitalize }} Dataset</span>{% endif %}
+                {% if is_cleaned %}<span class="badge badge-success" data-i18n="ov_cleaned_badge">Cleaned</span>{% elif data_status == 'clean' %}<span class="badge badge-success" data-i18n="ov_clean_badge">Bersih</span>{% endif %}
+            </p>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="exportPDF()" class="btn btn-primary" style="padding:8px 18px;border-radius:8px;background:var(--blue);color:#fff;font-size:.78rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:7px;transition:.15s;cursor:pointer;border:none;font-family:inherit;" data-i18n="ov_export_report">
+                <i class="fas fa-file-pdf" id="pdf-export-icon"></i> <span id="pdf-export-text" data-i18n="ov_export_report">Export Report</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Warning banner for raw/uncleaned data -->
+    {% if data_status == 'raw' %}
+    <div class="ov-raw-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span data-i18n="ov_raw_warning_msg">Data <strong>perlu dibersihkan</strong> sebelum analisis lanjutan. </span>
+        <button class="ov-raw-warning-btn" onclick="switchTab('cleaning')"><i class="fas fa-broom"></i> <span data-i18n="ov_raw_warning_btn">Cleaning</span></button>
+    </div>
+    {% endif %}
+
+    <!-- KPI CARDS -->
+    <div class="insight-kpi-row">
+        {% for kpi in overview.kpis %}
+        <div class="card insight-kpi-card {{ kpi.color }}">
+            <div class="insight-kpi-icon"><i class="fas {{ kpi.icon }}"></i></div>
+            <div class="insight-kpi-body">
+                <div class="insight-kpi-value">{{ kpi.value }}</div>
+                <div class="insight-kpi-label">{{ kpi.label }}</div>
+                {% if kpi.subtitle %}
+                <div class="insight-kpi-sub">{{ kpi.subtitle }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
 
     {% if data_status == 'raw' %}
-    <!-- ══ OVERVIEW: RAW MODE (critical issues — block visualizations) ══ -->
-    <div class="db-global-banner warning" style="display:flex; margin-bottom: 24px;">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span class="db-banner-msg" data-translate="ov_raw_warning">
-            ⚠️ Dataset terdeteksi belum bersih (Raw Mode). Visualisasi dinonaktifkan hingga data dibersihkan.
-        </span>
-        <button class="db-banner-cta" onclick="switchTab('cleaning')" data-translate="banner_clean_btn">
-            <i class="fas fa-broom"></i> Bersihkan Sekarang
-        </button>
-    </div>
-
-    <!-- DC Summary Cards -->
-    <div class="dc-summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px;">
-        <div class="dc-stat-card">
-            <span class="dc-stat-label"><i class="fas fa-list-ol"></i> Rows</span>
-            <span class="dc-stat-value">{{ quality_full.summary.total_rows }}</span>
-        </div>
-        <div class="dc-stat-card">
-            <span class="dc-stat-label"><i class="fas fa-columns"></i> Columns</span>
-            <span class="dc-stat-value">{{ quality_full.summary.total_cols }}</span>
-        </div>
-        <div class="dc-stat-card {% if quality_full.summary.duplicate_rows > 0 %}has-issue{% else %}all-good{% endif %}">
-            <span class="dc-stat-label"><i class="fas fa-copy"></i> Duplicates</span>
-            <span class="dc-stat-value">{{ quality_full.summary.duplicate_rows }}</span>
-        </div>
-        <div class="dc-stat-card {% if quality_full.summary.missing_cells > 0 %}has-issue{% else %}all-good{% endif %}">
-            <span class="dc-stat-label"><i class="fas fa-question-circle"></i> Missing</span>
-            <span class="dc-stat-value">{{ quality_full.summary.missing_cells }}</span>
-        </div>
-        <div class="dc-stat-card {% if quality_full.summary.total_outliers > 0 %}has-issue{% else %}all-good{% endif %}">
-            <span class="dc-stat-label"><i class="fas fa-exclamation"></i> Outliers</span>
-            <span class="dc-stat-value">{{ quality_full.summary.total_outliers }}</span>
-        </div>
-        <div class="dc-stat-card {% if quality_full.summary.inconsistency_count > 0 %}has-issue{% else %}all-good{% endif %}">
-            <span class="dc-stat-label"><i class="fas fa-random"></i> Inconsistencies</span>
-            <span class="dc-stat-value">{{ quality_full.summary.inconsistency_count }}</span>
-        </div>
-        <div class="dc-stat-card {% if quality_full.summary.irrelevant_count > 0 %}has-issue{% else %}all-good{% endif %}">
-            <span class="dc-stat-label"><i class="fas fa-filter"></i> Irrelevant Cols</span>
-            <span class="dc-stat-value">{{ quality_full.summary.irrelevant_count }}</span>
-        </div>
-        <div class="dc-stat-card">
-            <span class="dc-stat-label"><i class="fas fa-code"></i> Data Types</span>
-            <span class="dc-stat-value" style="font-size:.8rem;font-weight:600;">
-                {% for k,v in quality_full.summary.dtypes.items() %}{{ k }}:{{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
-            </span>
-        </div>
-    </div>
-
-    <!-- Quality Report Table -->
-    <div class="card dc-quality-card" style="margin-bottom: 24px;">
-        <div class="quality-col-header">
-            <h4><i class="fas fa-clipboard-check text-purple"></i> Data Quality Report</h4>
-        </div>
-        <div class="table-scroll-wrapper" style="max-height:520px;">
-            <table class="data-table" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Column</th><th>Data Type</th><th>Missing</th><th>Missing %</th>
-                        <th>Unique</th><th>Outliers</th><th>Issues</th><th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in quality_full.columns %}
-                    <tr>
-                        <td class="var-name">{{ row.column }}</td>
-                        <td>{{ row.dtype }}</td>
-                        <td class="{% if row.missing > 0 %}text-warning{% endif %}">{{ row.missing }}</td>
-                        <td class="{% if row.missing_pct > 0 %}text-warning{% endif %}">{{ row.missing_pct }}%</td>
-                        <td>{{ row.unique }}</td>
-                        <td class="{% if row.outliers > 0 %}text-danger{% endif %}">{{ row.outliers }}</td>
-                        <td style="font-size:.78rem;">{{ row.issues }}</td>
-                        <td>
-                            {% if row.status == 'ok' %}
-                            <span class="dc-badge dc-badge-success"><i class="fas fa-check"></i> OK</span>
-                            {% else %}
-                            <span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation"></i> Issue</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% elif data_status == 'clean_with_outliers' %}
-    <!-- ══ OVERVIEW: CLEAN WITH OUTLIERS (show viz + orange badge) ══ -->
-    <!-- Outlier Warning Badge -->
-    <div class="outlier-warning-badge" id="outlier-warning-badge">
-        <i class="fas fa-exclamation-circle"></i>
-        <span data-translate="outlier_badge_msg">Data sudah valid — tidak ada missing, duplikat, atau inkonsistensi.</span>
-        <span class="owb-count" id="outlier-badge-count">{{ quality_full.summary.total_outliers }} outlier</span>
-        <span data-translate="outlier_badge_suffix">terdeteksi (IQR). Distribusi data bersifat unik.</span>
-        <button class="db-banner-cta" onclick="switchTab('cleaning')" style="margin-left:auto;background:#fb923c;color:#fff;font-size:.72rem;" data-translate="outlier_badge_btn">
-            <i class="fas fa-chart-box"></i> Handle Outlier
-        </button>
-        <button class="db-banner-close" onclick="document.getElementById('outlier-warning-badge').style.display='none'">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-    <!-- KPI Row (same as clean) -->
-    <div class="ov-kpi-row">
-        {% for kpi in overview.kpis %}
-        <div class="card kpi-card {{ kpi.color }}">
-            <div class="kpi-icon"><i class="fas {{ kpi.icon }}"></i></div>
-            <div class="kpi-data">
-                <h3>{{ kpi.value }}</h3>
-                <p>{{ kpi.label }}</p>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <!-- ══ OVERVIEW: FULLY CLEAN ══ -->
-    <!-- KPI Row -->
-
-    <div class="ov-kpi-row">
-        {% for kpi in overview.kpis %}
-        <div class="card kpi-card {{ kpi.color }}">
-            <div class="kpi-icon"><i class="fas {{ kpi.icon }}"></i></div>
-            <div class="kpi-data">
-                <h3>{{ kpi.value }}</h3>
-                <p>{{ kpi.label }}</p>
-            </div>
-        </div>
-        {% endfor %}
+    <!-- Column Health — info status & masalah per kolom -->
+    <div class="card full-card mt-4" style="overflow:hidden;border:1px solid var(--border);border-radius:12px;">
+      <div class="ov-stats-card-header" style="border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;"><i class="fas fa-clipboard-list" style="color:#f59e0b;"></i> <span data-i18n="ov_column_health_title">Column Health — Status &amp; Masalah</span></h4>
+        <span style="font-size:.7rem;color:var(--muted);white-space:nowrap;" data-i18n="ov_column_health_meta">{{ quality_full.summary.total_cols }} kolom · {{ quality_full.summary.total_rows }} baris</span>
+      </div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+        <table class="dc-quality-table" style="width:100%;border-collapse:collapse;font-size:.8rem;">
+          <thead>
+            <tr>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:left;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_column">Kolom</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:left;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_type">Tipe Data</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:center;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_missing">Missing</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:center;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_missing_pct">Missing %</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:center;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_unique">Unique</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:center;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_outliers">Outlier</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:left;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_issues">Masalah</th>
+              <th style="background:var(--bg);position:sticky;top:0;z-index:1;padding:10px 12px;text-align:center;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);" data-i18n="ov_table_status">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in quality_full.columns %}
+            <tr style="border-bottom:1px solid var(--border);transition:background .15s;">
+              <td style="padding:9px 12px;font-weight:600;color:var(--blue);">{{ row.column }}</td>
+              <td style="padding:9px 12px;font-size:.75rem;color:var(--muted);">{{ row.dtype }}</td>
+              <td style="padding:9px 12px;text-align:center;{% if row.missing > 0 %}color:#b8860b;font-weight:600;{% endif %}">{{ row.missing }}</td>
+              <td style="padding:9px 12px;text-align:center;{% if row.missing_pct > 0 %}color:#b8860b;font-weight:600;{% endif %}">{{ row.missing_pct }}%</td>
+              <td style="padding:9px 12px;text-align:center;">{{ row.unique }}</td>
+              <td style="padding:9px 12px;text-align:center;{% if row.outliers > 0 %}color:var(--red);font-weight:700;{% endif %}">{{ row.outliers }}</td>
+              <td style="padding:9px 12px;font-size:.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ row.issues }}</td>
+              <td style="padding:9px 12px;text-align:center;">
+                {% if row.status == 'ok' %}
+                <span class="dc-badge dc-badge-success" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:700;"><i class="fas fa-check-circle"></i> <span data-i18n="ov_status_ok">OK</span></span>
+                {% else %}
+                <span class="dc-badge dc-badge-danger" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:700;"><i class="fas fa-exclamation-circle"></i> <span data-i18n="ov_status_issue">Issue</span></span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
     {% endif %}
 
-    <!-- ── Chart Grid + Stats: shown for both clean and clean_with_outliers ── -->
     {% if data_status != 'raw' %}
-
-    <!-- ── Chart Grid Baris Atas ── -->
-    {% set mid_visible = overview.slots.ov_hbar.visible or overview.slots.ov_center.visible or overview.slots.ov_top_right.visible %}
-    {% if mid_visible %}
-    <div class="ov-viz-row ov-viz-row--3">
-
-        {% if overview.slots.ov_hbar.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{{ overview.viz_links.ov_hbar.tab }}"
-             data-viz-sub="{{ overview.viz_links.ov_hbar.sub or 'categorical' }}">
-            <div class="card-header-clean ov-slot-header">
-                <h4><i class="fas fa-chart-bar text-blue"></i>
-                    <span id="ov_hbar-title">{{ overview.slots.ov_hbar.title }}</span>
-                </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
-            </div>
-            {% if overview.toggle_data.ov_hbar and overview.toggle_data.ov_hbar.options|length > 1 %}
-            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
-                <label for="toggle-ov_hbar">Kolom:</label>
-                <select id="toggle-ov_hbar">
-                    {% for opt in overview.toggle_data.ov_hbar.options %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_hbar.default %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div id="ov_hbar" class="chart-area ov-chart-area"></div>
-        </div>
+    <!-- Data Profile Strip (compact) -->
+    <div class="ov-data-profile">
+        <span class="ov-dp-item"><i class="fas fa-table"></i> {{ dataset_info.rows }} <span data-i18n="ov_dp_rows">baris</span></span>
+        <span class="ov-dp-sep">|</span>
+        <span class="ov-dp-item"><i class="fas fa-columns"></i> {{ dataset_info.cols }} <span data-i18n="ov_dp_columns">kolom</span></span>
+        <span class="ov-dp-sep">|</span>
+        <span class="ov-dp-item"><i class="fas fa-calculator"></i> <span class="ov-dp-badge num">{{ num_cols|length }} <span data-i18n="ov_dp_numeric">Numerik</span></span></span>
+        <span class="ov-dp-item"><i class="fas fa-font"></i> <span class="ov-dp-badge cat">{{ cat_cols|length }} <span data-i18n="ov_dp_categorical">Kategorikal</span></span></span>
+        {% if dt_cols %}
+        <span class="ov-dp-item"><i class="fas fa-calendar"></i> <span class="ov-dp-badge dt">{{ dt_cols|length }} <span data-i18n="ov_dp_datetime">Tanggal</span></span></span>
         {% endif %}
+        <span class="ov-dp-sep">|</span>
+        {% set miss = quality_full.summary.missing_cells if quality_full and quality_full.summary else 0 %}
+        <span class="ov-dp-item"><i class="fas fa-{{ 'exclamation-triangle' if miss > 0 else 'check-circle' }}"></i>
+            <span class="ov-dp-badge {{ 'miss' if miss > 0 else 'ok' }}">{{ miss }} <span data-i18n="ov_dp_missing">missing</span></span></span>
+    </div>
 
-        {% if overview.slots.ov_center.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{{ overview.viz_links.ov_center.tab }}"
-             data-viz-sub="{{ overview.viz_links.ov_center.sub or 'categorical' }}">
-            <div class="card-header-clean ov-slot-header">
-                <h4><i class="fas fa-chart-pie text-purple"></i>
-                    <span id="ov_center-title">{{ overview.slots.ov_center.title }}</span>
-                </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
-            </div>
-            {% if overview.toggle_data.ov_center and overview.toggle_data.ov_center.options|length > 1 %}
-            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
-                <label for="toggle-ov_center">Kolom:</label>
-                <select id="toggle-ov_center">
-                    {% for opt in overview.toggle_data.ov_center.options %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_center.default %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div id="ov_center" class="chart-area ov-chart-area"></div>
-        </div>
-        {% endif %}
-
-        {% if overview.slots.ov_top_right.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{% if has_ts %}timeseries{% else %}visualizations{% endif %}"
-             data-viz-sub="{% if has_ts %}numerical{% else %}bivariate{% endif %}">
-            <div class="card-header-clean ov-slot-header">
-                <h4>
-                    {% if has_ts %}<i class="fas fa-chart-line text-green"></i>
-                    {% else %}<i class="fas fa-circle-dot text-blue"></i>{% endif %}
-                    <span id="ov_top_right-title">{{ overview.slots.ov_top_right.title }}</span>
-                </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
-            </div>
-            {% if not has_ts and overview.toggle_data.ov_top_right and overview.toggle_data.ov_top_right.type == 'scatter' %}
-            <div class="ov-toggle-wrap ov-toggle-wrap--double" onclick="event.stopPropagation()">
-                <label for="scatter-col-x">X:</label>
-                <select id="scatter-col-x">
-                    {% for opt in overview.toggle_data.ov_top_right.options_x %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_top_right.default_x %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-                <label for="scatter-col-y" style="margin-left:10px;">Y:</label>
-                <select id="scatter-col-y">
-                    {% for opt in overview.toggle_data.ov_top_right.options_y %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_top_right.default_y %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div id="ov_top_right" class="chart-area ov-chart-area"></div>
-        </div>
-        {% endif %}
-
+    <!-- Key Findings (compact pills) -->
+    {% if insights_id %}
+    <div class="ov-key-findings">
+        <span class="ov-key-findings-label"><i class="fas fa-lightbulb"></i> <span data-i18n="ov_key_findings_label">Temuan Utama</span></span>
+        {% set _insights = insights_id[:4] %}
+        <script id="ov-insight-data" type="application/json">{{ _insights | tojson }}</script>
+        {% for ins in _insights %}
+        <span class="ov-kf-pill" data-insight-idx="{{ loop.index0 }}" data-i18n-title="ov_key_findings_title" title="Klik untuk detail">
+            <i class="fas {{ ins.icon }}"></i>
+            <span class="ov-kf-pill-text">{{ ins.title|trim }}</span>
+        </span>
+        {% endfor %}
     </div>
     {% endif %}
+    {% endif %}
 
-    <!-- ── Chart Grid Baris Bawah ── -->
-    {% set bot_visible = overview.slots.ov_vbar_left.visible or overview.slots.ov_area_bottom.visible or overview.slots.ov_vbar_right.visible %}
-    {% if bot_visible %}
-    <div class="ov-viz-row ov-viz-row--3 mt-4">
+    {% if data_status != 'raw' %}
+    <!-- ══ VISUALIZATION ENGINE (clickable → buka tab sesuai jenis) ══ -->
+    {% set slot_keys = ['ov_ts_line', 'ov_scatter', 'ov_pie', 'ov_bar', 'ov_histogram', 'ov_boxplot'] %}
+    {% set viz_count = 0 %}
+    {% for k in slot_keys %}
+    {% if k in overview.slots and overview.slots[k].visible %}{% set viz_count = viz_count + 1 %}{% endif %}
+    {% endfor %}
 
-        {% if overview.slots.ov_vbar_left.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{{ overview.viz_links.ov_vbar_left.tab }}"
-             data-viz-sub="numerical">
+    <div class="ov-viz-compact{% if viz_count in (5,6) %} ov-viz-{{ viz_count }}{% endif %}">
+
+        {% if 'ov_ts_line' in overview.slots and overview.slots.ov_ts_line.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="timeseries" data-viz-sub="line">
+            <div class="card-header-clean ov-slot-header">
+                <h4><i class="fas fa-chart-line text-green"></i>
+                    <span id="ov_ts_line-title">{{ overview.slots.ov_ts_line.title }}</span>
+                </h4>
+            </div>
+            {% if overview.toggle_data.ov_ts_line and overview.toggle_data.ov_ts_line.options|length > 1 %}
+            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
+                <label data-i18n="ov_metric_label">Metrik:</label>
+                <select id="toggle-ov_ts_line" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_ts_line.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div id="ov_ts_line" class="chart-area ov-chart-area ov-chart-area--ts"></div>
+            <div class="ov-smart-insight" id="ov_ts_line-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_ts_line.insights %}
+                {% for ins in overview.slots.ov_ts_line.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ov_scatter' in overview.slots and overview.slots.ov_scatter.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="visualizations" data-viz-sub="bivariate">
+            <div class="card-header-clean ov-slot-header">
+                <h4><i class="fas fa-dot-circle text-purple"></i>
+                    <span id="ov_scatter-title">{{ overview.slots.ov_scatter.title }}</span>
+                </h4>
+            </div>
+            {% if overview.toggle_data.ov_scatter and overview.toggle_data.ov_scatter.options|length > 1 %}
+            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
+                <label data-i18n="ov_toggle_pair">Pasangan:</label>
+                <select id="toggle-ov_scatter" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_scatter.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div id="ov_scatter" class="chart-area ov-chart-area"></div>
+            <div class="ov-smart-insight" id="ov_scatter-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_scatter.insights %}
+                {% for ins in overview.slots.ov_scatter.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ov_pie' in overview.slots and overview.slots.ov_pie.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="visualizations" data-viz-sub="categorical">
+            <div class="card-header-clean ov-slot-header">
+                <h4><i class="fas fa-chart-pie text-blue"></i>
+                    <span id="ov_pie-title">{{ overview.slots.ov_pie.title }}</span>
+                </h4>
+            </div>
+            {% if overview.toggle_data.ov_pie and overview.toggle_data.ov_pie.options|length >= 1 %}
+            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
+                <label data-i18n="ov_toggle_column">Kolom:</label>
+                <select id="toggle-ov_pie" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_pie.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div id="ov_pie" class="chart-area ov-chart-area"></div>
+            <div class="ov-smart-insight" id="ov_pie-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_pie.insights %}
+                {% for ins in overview.slots.ov_pie.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ov_bar' in overview.slots and overview.slots.ov_bar.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="visualizations" data-viz-sub="categorical">
             <div class="card-header-clean ov-slot-header">
                 <h4><i class="fas fa-chart-bar text-orange"></i>
-                    <span id="ov_vbar_left-title">{{ overview.slots.ov_vbar_left.title }}</span>
+                    <span id="ov_bar-title">{{ overview.slots.ov_bar.title }}</span>
                 </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
             </div>
-            {% if overview.toggle_data.ov_vbar_left and overview.toggle_data.ov_vbar_left.options|length > 1 %}
+            {% if overview.toggle_data.ov_bar and overview.toggle_data.ov_bar.options|length >= 1 %}
             <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
-                <label for="toggle-ov_vbar_left">Kolom:</label>
-                <select id="toggle-ov_vbar_left">
-                    {% for opt in overview.toggle_data.ov_vbar_left.options %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_vbar_left.default %}selected{% endif %}>{{ opt }}</option>
+                <label data-i18n="ov_toggle_column">Kolom:</label>
+                <select id="toggle-ov_bar" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_bar.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
-            <div id="ov_vbar_left" class="chart-area ov-chart-area"></div>
+            <div id="ov_bar" class="chart-area ov-chart-area"></div>
+            <div class="ov-smart-insight" id="ov_bar-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_bar.insights %}
+                {% for ins in overview.slots.ov_bar.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
         </div>
         {% endif %}
 
-        {% if overview.slots.ov_area_bottom.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{{ overview.viz_links.ov_area_bottom.tab }}"
-             data-viz-sub="numerical">
+        {% if 'ov_histogram' in overview.slots and overview.slots.ov_histogram.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="visualizations" data-viz-sub="numerical">
+            <div class="card-header-clean ov-slot-header">
+                <h4><i class="fas fa-chart-bar text-orange"></i>
+                    <span id="ov_histogram-title">{{ overview.slots.ov_histogram.title }}</span>
+                </h4>
+            </div>
+            {% if overview.toggle_data.ov_histogram and overview.toggle_data.ov_histogram.options|length > 1 %}
+            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
+                <label data-i18n="ov_toggle_column">Kolom:</label>
+                <select id="toggle-ov_histogram" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_histogram.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div id="ov_histogram" class="chart-area ov-chart-area"></div>
+            <div class="ov-smart-insight" id="ov_histogram-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_histogram.insights %}
+                {% for ins in overview.slots.ov_histogram.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ov_boxplot' in overview.slots and overview.slots.ov_boxplot.visible %}
+        <div class="ov-chart-slot card chart-card" data-viz-tab="visualizations" data-viz-sub="numerical">
             <div class="card-header-clean ov-slot-header">
                 <h4><i class="fas fa-chart-simple text-blue"></i>
-                    <span id="ov_area_bottom-title">{{ overview.slots.ov_area_bottom.title }}</span>
+                    <span id="ov_boxplot-title">{{ overview.slots.ov_boxplot.title }}</span>
                 </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
             </div>
-            {% if overview.toggle_data.ov_area_bottom and overview.toggle_data.ov_area_bottom.options|length > 1 %}
+            {% if overview.toggle_data.ov_boxplot and overview.toggle_data.ov_boxplot.options|length > 1 %}
             <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
-                <label for="toggle-ov_area_bottom">Kolom:</label>
-                <select id="toggle-ov_area_bottom">
-                    {% for opt in overview.toggle_data.ov_area_bottom.options %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_area_bottom.default %}selected{% endif %}>{{ opt }}</option>
+                <label data-i18n="ov_toggle_column">Kolom:</label>
+                <select id="toggle-ov_boxplot" class="ov-toggle-select">
+                    {% for opt in overview.toggle_data.ov_boxplot.options %}
+                    <option value="{{ opt }}" {% if loop.first %}selected{% endif %}>{{ opt }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
-            <div id="ov_area_bottom" class="chart-area ov-chart-area"></div>
-        </div>
-        {% endif %}
-
-        {% if overview.slots.ov_vbar_right.visible %}
-        <div class="ov-chart-slot card chart-card"
-             data-viz-tab="{{ overview.viz_links.ov_vbar_right.tab }}"
-             data-viz-sub="categorical">
-            <div class="card-header-clean ov-slot-header">
-                <h4><i class="fas fa-chart-column text-red"></i>
-                    <span id="ov_vbar_right-title">{{ overview.slots.ov_vbar_right.title }}</span>
-                </h4>
-                <span class="ov-go-viz"><i class="fas fa-arrow-right"></i> Visualizations</span>
+            <div id="ov_boxplot" class="chart-area ov-chart-area"></div>
+            <div class="ov-smart-insight" id="ov_boxplot-insight">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight"><i class="fas fa-brain"></i> Smart Insight</div>
+                {% if overview.slots.ov_boxplot.insights %}
+                {% for ins in overview.slots.ov_boxplot.insights[:2] %}
+                <div class="ov-smart-insight-item"><i class="fas {{ ins.icon }}"></i> {{ ins.text }}</div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% if overview.toggle_data.ov_vbar_right and overview.toggle_data.ov_vbar_right.options|length > 1 %}
-            <div class="ov-toggle-wrap" onclick="event.stopPropagation()">
-                <label for="toggle-ov_vbar_right">Kolom:</label>
-                <select id="toggle-ov_vbar_right">
-                    {% for opt in overview.toggle_data.ov_vbar_right.options %}
-                    <option value="{{ opt }}" {% if opt == overview.toggle_data.ov_vbar_right.default %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div id="ov_vbar_right" class="chart-area ov-chart-area"></div>
         </div>
         {% endif %}
 
     </div>
-    {% endif %}
 
-    <!-- Empty state -->
-    {% if not mid_visible and not bot_visible %}
+    <!-- Empty state jika tidak ada visualisasi -->
+    {% set ns = namespace(has_viz=False) %}
+    {% for k in slot_keys %}
+    {% if k in overview.slots and overview.slots[k].visible %}{% set ns.has_viz = True %}{% endif %}
+    {% endfor %}
+    {% if not ns.has_viz %}
     <div class="card ov-empty-state mt-4">
         <i class="fas fa-chart-line"></i>
-        <p>Dataset tidak memiliki kolom yang cukup untuk visualisasi ringkasan.</p>
+        <p data-i18n="ov_empty">Dataset tidak memiliki kolom yang cukup untuk visualisasi ringkasan.</p>
     </div>
+    {% endif %}
     {% endif %}
 
-    <!-- ── Stats Preview Tables ── -->
-    <div class="ov-stats-section">
-        <div class="ov-stats-section-title">
-            <i class="fas fa-table-list text-blue"></i>
-            Statistics Summary
-            <span style="font-size:0.75rem;color:var(--muted);font-weight:400;margin-left:4px;">— snapshot ringkasan dataset</span>
-        </div>
-        <div class="ov-stats-grid">
-            <div class="card ov-stats-card" id="ov-stats-num-card">
-                <div class="ov-stats-card-header">
-                    <h4><i class="fas fa-hashtag text-orange"></i> Numerical Variables</h4>
-                    <a class="ov-stats-link" href="#" onclick="switchTab('numerical'); return false;">
-                        <i class="fas fa-external-link-alt"></i> Full Stats
-                    </a>
-                </div>
-                <div class="ov-stats-table-wrap" id="ov-stats-num-wrap"></div>
-            </div>
-            <div class="card ov-stats-card" id="ov-stats-cat-card">
-                <div class="ov-stats-card-header">
-                    <h4><i class="fas fa-font text-purple"></i> Categorical Variables</h4>
-                    <a class="ov-stats-link" href="#" onclick="switchTab('categorical'); return false;">
-                        <i class="fas fa-external-link-alt"></i> Full Stats
-                    </a>
-                </div>
-                <div class="ov-stats-table-wrap" id="ov-stats-cat-wrap"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Smart Insights Preview ── -->
-    {% if insights %}
-    <div class="ov-stats-section mt-4">
-        <div class="ov-stats-section-title">
-            <i class="fas fa-lightbulb text-yellow"></i>
-            Key Insights
-            <span style="font-size:0.75rem;color:var(--muted);font-weight:400;margin-left:4px;">— hasil analisis otomatis</span>
-        </div>
-        <div class="insights-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-            {% for insight in insights[:4] %}
-            <div class="card insight-card" style="border-left:4px solid var(--{{ insight.type }}, var(--blue));margin-bottom:0;">
-                <div class="insight-header">
-                    <div class="insight-icon" style="color:var(--{{ insight.type }},var(--blue));border-color:var(--{{ insight.type }},var(--blue));">
-                        <i class="fas {{ insight.icon }}"></i>
-                    </div>
-                    <h4>{{ insight.title }}</h4>
-                </div>
-                <p>{{ insight.desc | safe }}</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
 </div>
 <!-- ── END TAB 1: OVERVIEW ── -->
 
 
-<!-- ══════════════ TAB 2: DATA PREVIEW ══════════════ -->
+<!-- ══════════════ TAB 2: UPLOAD DATA ══════════════ -->
+<div id="tab-upload" class="tab-content" style="display:none;">
+<style>
+.upload-page-header { margin-bottom: 28px; }
+.upload-page-header h2 {
+    font-size: 1.3rem; font-weight: 800; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+}
+.upload-page-header p { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+.upload-page-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+}
+@media (max-width: 900px) { .upload-page-wrapper { grid-template-columns: 1fr; } }
+.upload-card { padding: 32px; min-height: 380px; }
+.upload-card-header { margin-bottom: 24px; }
+.upload-card-header h3 {
+    font-size: 1.05rem; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.upload-card-header p { font-size: 0.82rem; color: var(--muted); }
+.format-badges { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.fmt-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    border: 1.5px solid;
+}
+.fmt-badge.csv  { background: #d1f3e0; color: #027a5a; border-color: #05cd99; }
+.fmt-badge.xlsx { background: #e9e3ff; color: #4318ff; border-color: #868cff; }
+.fmt-badge.txt  { background: #fff8d6; color: #7d6400; border-color: #ffce20; }
+.modern-dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 44px 24px;
+    background: var(--bg);
+    text-align: center;
+    cursor: pointer;
+    transition: all .25s ease;
+    position: relative;
+    overflow: hidden;
+}
+.modern-dropzone::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--blue-light) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity .25s ease;
+    pointer-events: none;
+}
+.modern-dropzone:hover,
+.modern-dropzone.dragover {
+    border-color: var(--blue);
+    border-style: solid;
+    background: var(--card-bg);
+}
+.modern-dropzone:hover::before,
+.modern-dropzone.dragover::before { opacity: 1; }
+.dropzone-icon-wrap {
+    width: 72px; height: 72px;
+    background: var(--blue-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+    transition: transform .25s ease;
+}
+.modern-dropzone:hover .dropzone-icon-wrap { transform: scale(1.1) translateY(-4px); }
+.dropzone-icon-wrap i { font-size: 1.8rem; color: var(--blue); }
+.modern-dropzone h3 { color: var(--text); font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+.modern-dropzone p  { color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; }
+.btn-browse {
+    background: var(--blue);
+    color: #fff;
+    padding: 9px 22px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all .2s;
+}
+.btn-browse:hover { background: #3110c4; transform: translateY(-1px); }
+.file-name-display {
+    display: none;
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: var(--green-light);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #027a5a;
+    align-items: center;
+    gap: 8px;
+}
+.file-name-display.visible { display: flex; }
+.upload-progress-wrap {
+    display: none;
+    margin-top: 16px;
+    background: var(--border);
+    border-radius: 20px;
+    height: 6px;
+    overflow: hidden;
+}
+.upload-progress-wrap.visible { display: block; }
+.upload-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    border-radius: 20px;
+    transition: width .4s ease;
+}
+.btn-analyze {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+    color: #fff;
+    border: none;
+    padding: 14px 28px;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 20px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all .25s ease;
+    position: relative;
+    overflow: hidden;
+}
+.btn-analyze::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,.12);
+    opacity: 0;
+    transition: opacity .2s;
+}
+.btn-analyze:hover:not(:disabled)::after { opacity: 1; }
+.btn-analyze:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(67,24,255,.35); }
+.btn-analyze:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.upload-info-row {
+    display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;
+}
+.upload-info-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: var(--muted);
+}
+.upload-info-item i { color: var(--green); }
+.history-card-wrap {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+    overflow: hidden;
+}
+.history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+}
+.history-header h3 {
+    font-size: 1.05rem; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+}
+.history-count {
+    font-size: 0.72rem; font-weight: 700;
+    background: var(--blue-light); color: var(--blue);
+    padding: 3px 10px; border-radius: 20px;
+}
+.history-subtext { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; flex-shrink: 0; }
+.history-search-wrap {
+    position: relative;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+.history-search-wrap i {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 0.85rem;
+}
+.history-search {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color .2s;
+}
+.history-search:focus { border-color: var(--blue); }
+.history-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+.history-grid::-webkit-scrollbar { width: 5px; }
+.history-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.history-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    transition: all .2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.history-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--blue);
+    transform: scaleY(0);
+    transition: transform .2s ease;
+    border-radius: 3px 0 0 3px;
+}
+.history-card:hover { background: var(--card-bg); border-color: var(--blue); transform: translateX(4px); }
+.history-card:hover::before { transform: scaleY(1); }
+.hist-file-icon {
+    width: 42px; height: 42px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.hist-file-icon.csv  { background: var(--green-light); color: #027a5a; }
+.hist-file-icon.xlsx { background: var(--blue-light);  color: var(--blue); }
+.hist-file-icon.txt  { background: var(--orange-light); color: #7d6400; }
+.hist-details { flex: 1; min-width: 0; }
+.hist-details h4 {
+    font-size: 0.88rem; font-weight: 600; color: var(--text);
+    margin-bottom: 4px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.hist-details .hist-meta { display: flex; gap: 8px; align-items: center; }
+.badge-analyzed {
+    font-size: 0.68rem; background: var(--green-light); color: #027a5a;
+    padding: 2px 8px; border-radius: 20px; font-weight: 700;
+}
+.hist-arrow {
+    color: var(--muted); font-size: 0.8rem;
+    transition: color .2s, transform .2s;
+    flex-shrink: 0;
+}
+.history-card:hover .hist-arrow { color: var(--blue); transform: translateX(3px); }
+.empty-history {
+    text-align: center; padding: 48px 20px; color: var(--muted);
+}
+.empty-history .empty-icon {
+    width: 64px; height: 64px;
+    background: var(--bg); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+    font-size: 1.5rem; color: var(--muted);
+}
+.empty-history h4 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.empty-history p { font-size: 0.82rem; }
+.tip-card {
+    margin-top: 20px;
+    background: linear-gradient(135deg, var(--blue-light) 0%, var(--purple-light) 100%);
+    border: 1px solid var(--blue);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    display: flex; gap: 12px; align-items: flex-start;
+}
+.tip-card i { color: var(--blue); font-size: 1rem; margin-top: 2px; flex-shrink: 0; }
+.tip-card p { font-size: 0.8rem; color: var(--text); line-height: 1.6; }
+.tip-card strong { color: var(--blue); }
+.file-preview-info {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    gap: 16px;
+}
+.file-preview-info.visible { display: flex; flex-wrap: wrap; }
+.file-info-item { display: flex; flex-direction: column; gap: 2px; }
+.file-info-item .fi-label { font-size: 0.7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.file-info-item .fi-value { font-size: 0.88rem; color: var(--text); font-weight: 700; }
+</style>
+
+<div class="upload-page-header">
+    <h2><i class="fas fa-cloud-upload-alt text-blue"></i> <span data-i18n="upload_title">Upload Dataset</span></h2>
+    <p data-i18n="upload_desc">Upload your data file to begin automatic exploratory analysis</p>
+</div>
+
+<div class="upload-page-wrapper">
+    <div class="card upload-card">
+        <div class="upload-card-header">
+            <h3><i class="fas fa-file-import text-blue"></i> <span data-i18n="upload_card_title">Select Your File</span></h3>
+            <p data-i18n="upload_card_desc">Drag &amp; drop or browse to upload. Max file size: 100 MB.</p>
+        </div>
+        <div class="format-badges">
+            <span class="fmt-badge csv"><i class="fas fa-file-csv"></i> <span data-i18n="upload_fmt_csv">CSV</span></span>
+            <span class="fmt-badge xlsx"><i class="fas fa-file-excel"></i> <span data-i18n="upload_fmt_xlsx">XLSX</span></span>
+            <span class="fmt-badge txt"><i class="fas fa-file-alt"></i> <span data-i18n="upload_fmt_txt">TXT</span></span>
+        </div>
+        <form id="upload-form" action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+            <div class="modern-dropzone" id="dropzone"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event)"
+                 onclick="document.getElementById('file-input').click()">
+                <div class="dropzone-icon-wrap">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h3 data-i18n="upload_dropzone">Drag &amp; drop your file here</h3>
+                <p data-i18n="upload_supported">Supported: .csv, .xlsx, .txt</p>
+                <input type="file" id="file-input" name="file"
+                       accept=".csv, .xlsx, .txt" required hidden
+                       onchange="handleFileSelect(this)">
+                <label class="btn-browse" onclick="event.stopPropagation();"
+                       for="file-input" data-i18n="upload_browse">
+                    <i class="fas fa-folder-open"></i> Browse File
+                </label>
+            </div>
+            <div class="file-name-display" id="file-name-display">
+                <i class="fas fa-check-circle"></i>
+                <span id="file-name-text" data-i18n="upload_file_selected">File selected</span>
+            </div>
+            <div class="file-preview-info" id="file-preview-info">
+                <div class="file-info-item">
+                    <span class="fi-label" data-i18n="upload_filename">File Name</span>
+                    <span class="fi-value" id="fi-name">—</span>
+                </div>
+                <div class="file-info-item">
+                    <span class="fi-label" data-i18n="upload_filesize">File Size</span>
+                    <span class="fi-value" id="fi-size">—</span>
+                </div>
+                <div class="file-info-item">
+                    <span class="fi-label" data-i18n="upload_format">Format</span>
+                    <span class="fi-value" id="fi-type">—</span>
+                </div>
+            </div>
+            <div class="upload-progress-wrap" id="upload-progress-wrap">
+                <div class="upload-progress-bar" id="upload-progress-bar"></div>
+            </div>
+            <button type="submit" class="btn-analyze" id="btn-submit" disabled>
+                <i class="fas fa-cogs"></i>
+                <span data-i18n="upload_analyze">Analyze Dataset</span>
+            </button>
+        </form>
+        <div class="upload-info-row">
+            <span class="upload-info-item"><i class="fas fa-shield-alt"></i> <span data-i18n="upload_secure">Secure upload</span></span>
+            <span class="upload-info-item"><i class="fas fa-bolt"></i> <span data-i18n="upload_autoeda">Auto-EDA in seconds</span></span>
+            <span class="upload-info-item"><i class="fas fa-database"></i> <span data-i18n="upload_maxsize">Max 100 MB</span></span>
+        </div>
+        <div class="tip-card">
+            <i class="fas fa-lightbulb"></i>
+            <p data-i18n="upload_protip"><strong>Pro tip:</strong> For best results, ensure your CSV uses comma delimiters and the first row contains column headers. Datetime columns are auto-detected for time series analysis.</p>
+        </div>
+    </div>
+
+    <div class="card history-card-wrap">
+        <div class="history-header">
+            <h3><i class="fas fa-history text-purple"></i> <span data-i18n="upload_history">Recent Datasets</span></h3>
+            {% if history %}
+            <span class="history-count">{{ history|length }} file{{ 's' if history|length != 1 else '' }}</span>
+            {% endif %}
+        </div>
+        <p class="history-subtext" data-i18n="upload_history_desc">Click any previous dataset to instantly reload its analysis.</p>
+        {% if history %}
+        <div class="history-search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" class="history-search" id="history-search"
+                   placeholder="Search datasets..."
+                   data-i18n-placeholder="upload_search"
+                   oninput="filterHistory(this.value)">
+        </div>
+        <div class="history-grid" id="history-grid">
+            {% for file in history %}
+            {% set ext = file.rsplit('.', 1)[-1].lower() if '.' in file else 'txt' %}
+            <a href="{{ url_for('dashboard', filename=file) }}"
+               class="history-card" data-filename="{{ file }}">
+                <div class="hist-file-icon {{ ext }}">
+                    {% if ext == 'csv' %}
+                        <i class="fas fa-file-csv"></i>
+                    {% elif ext == 'xlsx' %}
+                        <i class="fas fa-file-excel"></i>
+                    {% else %}
+                        <i class="fas fa-file-alt"></i>
+                    {% endif %}
+                </div>
+                <div class="hist-details">
+                    <h4 title="{{ file }}">{{ file }}</h4>
+                    <div class="hist-meta">
+                        <span class="badge-analyzed"><i class="fas fa-check-circle"></i> <span data-i18n="upload_analyzed">Analyzed</span></span>
+                        <span class="text-muted" style="font-size:0.72rem;">{{ ext|upper }}</span>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right hist-arrow"></i>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-history">
+            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+            <h4 data-i18n="upload_no_files">No datasets yet</h4>
+            <p data-i18n="upload_no_files_desc">Upload your first dataset to get started.<br>It will appear here for quick access.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+<!-- ── END TAB 2: UPLOAD ── -->
+
+
+<!-- ══════════════ TAB 3: DATA PREVIEW ══════════════ -->
 <div id="tab-preview" class="tab-content" style="display:none;">
     <div class="dashboard-header mb-4">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <h2><i class="fas fa-search text-blue"></i> Data Preview</h2>
+            <h2><i class="fas fa-search text-blue"></i> <span data-i18n="preview_title">Data Preview</span></h2>
             <span id="preview-status-label">
                 {% if is_cleaned %}
                 <span class="badge badge-success" style="font-size:.78rem;padding:5px 12px;">
-                    <i class="fas fa-check-circle"></i> Showing Cleaned Data
+                    <i class="fas fa-check-circle"></i> <span data-i18n="preview_clean_label">Showing Cleaned Data</span>
                 </span>
                 {% else %}
                 <span class="badge badge-warning" style="font-size:.78rem;padding:5px 12px;">
-                    <i class="fas fa-exclamation-triangle"></i> Showing Raw Data — belum di-cleaning
+                    <i class="fas fa-exclamation-triangle"></i> <span data-i18n="preview_raw_label">Showing Raw Data — belum di-cleaning</span>
                 </span>
                 {% endif %}
             </span>
         </div>
-        <p class="text-muted" style="margin-top:4px;">
-            {% if is_cleaned %}
+        {% if is_cleaned %}
+        <p class="text-muted" style="margin-top:4px;" data-i18n="preview_cleaned_desc">
             Data yang ditampilkan adalah versi <strong>clean</strong> (setelah cleaning).
-            {% else %}
+        </p>
+        {% else %}
+        <p class="text-muted" style="margin-top:4px;" data-i18n="preview_raw_desc">
             Data yang ditampilkan adalah <strong>raw data</strong>.
             Lakukan <a href="#" onclick="switchTab('cleaning');return false;" style="color:var(--blue);font-weight:600;">Data Cleaning</a> untuk membersihkan data.
-            {% endif %}
         </p>
+        {% endif %}
     </div>
 
-    <!-- Toggle raw/clean (hanya jika sudah cleaning) -->
-    {% if is_cleaned %}
+    <!-- Toggle raw/clean (selalu tampil) -->
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button id="preview-btn-clean" onclick="switchPreviewMode('clean')"
             style="padding:7px 18px;border-radius:8px;border:1px solid var(--green);background:var(--green);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:.18s;">
-            <i class="fas fa-check-circle"></i> Clean Data
+            <i class="fas fa-check-circle"></i> <span data-i18n="preview_btn_clean">Clean Data</span>
         </button>
         <button id="preview-btn-raw" onclick="switchPreviewMode('raw')"
             style="padding:7px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.18s;">
-            <i class="fas fa-database"></i> Raw Data
+            <i class="fas fa-database"></i> <span data-i18n="preview_btn_raw">Raw Data</span>
         </button>
     </div>
-    {% endif %}
 
-    {% if is_cleaned %}
-    <!-- Clean data pane -->
-    <div id="preview-pane-clean" class="card full-card">
+    <!-- Clean data pane (selalu dirender, di-hide jika belum cleaned) -->
+    <div id="preview-pane-clean" class="card full-card" {% if not is_cleaned %}style="display:none;"{% endif %}>
         <div class="card-header-clean">
-            <h3><i class="fas fa-check-circle text-green"></i> Cleaned Data
-                <span class="badge badge-success" style="font-size:.7rem;margin-left:8px;">Clean</span>
-                <span class="badge badge-info" style="font-size:.7rem;margin-left:4px;">{{ dataset_info.rows }} Rows</span>
+            <h3><i class="fas fa-check-circle text-green"></i> <span data-i18n="preview_clean_header">Cleaned Data</span>
+                <span class="badge badge-success" style="font-size:.7rem;margin-left:8px;" data-i18n="preview_clean_badge">Clean</span>
+                <span class="badge badge-info" style="font-size:.7rem;margin-left:4px;">{{ dataset_info.rows }} <span data-i18n="preview_rows_label">Rows</span></span>
             </h3>
         </div>
-        <div class="table-scroll-wrapper">{{ preview_clean | safe }}</div>
+        <div class="table-scroll-wrapper"><div id="preview-clean-table">{{ preview_clean | safe }}</div></div>
     </div>
-    {% endif %}
 
     <!-- Raw data pane -->
     <div id="preview-pane-raw" class="card full-card" {% if is_cleaned %}style="display:none;"{% endif %}>
         <div class="card-header-clean">
             <h3>
                 {% if is_cleaned %}
-                <i class="fas fa-database text-muted"></i> Raw Data (Original)
+                <i class="fas fa-database text-muted"></i> <span data-i18n="preview_raw_header">Raw Data (Original)</span>
                 {% else %}
-                <i class="fas fa-database text-blue"></i> Data Preview
+                <i class="fas fa-database text-blue"></i> <span data-i18n="preview_data">Data Preview</span>
                 {% endif %}
                 {% if not is_cleaned %}
-                <span class="badge badge-warning" style="font-size:.7rem;margin-left:8px;">Belum di-cleaning</span>
+                <span class="badge badge-warning" style="font-size:.7rem;margin-left:8px;" data-i18n="preview_not_cleaned">Belum di-cleaning</span>
                 {% endif %}
                 <span class="badge badge-info" style="font-size:.7rem;margin-left:4px;">{{ dataset_info.rows }} Rows</span>
             </h3>
@@ -699,7 +1531,36 @@
 <!-- ══════════════ TAB: DATA CLEANING ══════════════ -->
 <div id="tab-cleaning" class="tab-content" style="display:none;">
 
+<div id="cleaning-spinner-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(4,11,24,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="text-align:center;">
+        <div class="cleaning-spinner"></div>
+        <p style="color:#cde4f8;font-weight:600;margin-top:16px;font-size:0.95rem;" id="cleaning-spinner-text">Memproses data...</p>
+    </div>
+</div>
+
 <style>
+/* ── Cleaning Spinner ── */
+.cleaning-spinner { width:48px;height:48px;margin:0 auto;border:4px solid rgba(133,183,235,0.15);border-top-color:#378ADD;border-radius:50%;animation:cs-spin .8s linear infinite; }
+.cleaning-spinner--done {
+    border-color: rgba(5,205,153,.15);
+    border-top-color: #05cd99;
+    animation: none;
+    width: 56px; height: 56px;
+    position: relative;
+}
+.cleaning-spinner--done::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 26px;
+    color: #05cd99;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+}
+.cleaning-overlay--done { transition: opacity .5s ease 1.8s; }
+@keyframes cs-spin { to { transform:rotate(360deg); } }
+
 /* ── DC Notification banners ── */
 .dc-banner {
     display: none; align-items: center; gap: 12px; padding: 13px 20px;
@@ -758,6 +1619,48 @@
 .dc-col-check { display:flex; align-items:center; gap:7px; font-size:0.78rem; color:var(--text); cursor:pointer; padding:2px 4px; border-radius:5px; transition:background .12s; }
 .dc-col-check:hover { background:var(--bg); }
 .dc-col-check input { accent-color:var(--blue); width:13px; height:13px; }
+
+/* Show All toggle switch */
+.dc-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+.dc-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.dc-toggle-switch input { opacity: 0; width: 0; height: 0; }
+.dc-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    transition: .3s;
+}
+.dc-toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: .3s;
+}
+.dc-toggle-switch input:checked + .dc-toggle-slider { background: var(--blue, #378ADD); }
+.dc-toggle-switch input:checked + .dc-toggle-slider::before { transform: translateX(16px); }
+.dc-toggle-label { user-select: none; cursor: pointer; }
+
 .dc-action-row { display:flex; gap:8px; margin-top:4px; }
 .dc-btn-preview { flex:1; padding:8px 0; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:0.78rem; font-weight:600; cursor:pointer; font-family:inherit; transition:.18s; display:flex; align-items:center; justify-content:center; gap:5px; }
 .dc-btn-preview:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
@@ -800,6 +1703,14 @@
 .dc-undo-last-btn:hover:not(:disabled) { background:var(--red); color:#fff; }
 .dc-undo-last-btn:disabled { opacity:.35; cursor:not-allowed; }
 
+/* ── DC Quick Fix ── */
+.dc-quickfix-card { margin:0 12px 16px; padding:16px 20px; border-radius:12px; background:linear-gradient(135deg,#059669,#047857); color:#fff; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.dc-quickfix-card h4 { font-size:.95rem; font-weight:800; display:flex; align-items:center; gap:8px; margin:0; color:#fff; }
+.dc-quickfix-card p { font-size:.78rem; opacity:.9; margin:4px 0 0; }
+.dc-btn-quickfix { padding:10px 28px; border-radius:10px; border:2px solid rgba(255,255,255,.7); background:rgba(255,255,255,.15); color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; font-family:inherit; backdrop-filter:blur(4px); transition:.2s; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+.dc-btn-quickfix:hover { background:#fff; color:#047857; border-color:#fff; transform:scale(1.03); }
+.dc-btn-quickfix:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
 /* ── DC Preview modal ── */
 .dc-preview-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center; }
 .dc-preview-modal.open { display:flex; }
@@ -838,10 +1749,10 @@
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
         <div>
             <h2 style="display:flex;align-items:center;gap:10px;">
-                <i class="fas fa-broom text-green"></i> Data Cleaning
+                <i class="fas fa-broom text-green"></i> <span data-i18n="nav_cleaning">Data Cleaning</span>
                 <span id="dc-status-badge"></span>
             </h2>
-            <p class="text-muted" style="margin-top:4px;" data-translate="cleaning_desc">Pilih operasi, preview dampak, lalu apply. Semua langkah tersimpan di history.</p>
+            <p class="text-muted" style="margin-top:4px;" data-i18n="cleaning_desc">Pilih operasi, preview dampak, lalu apply. Semua langkah tersimpan di history.</p>
         </div>
     </div>
 </div>
@@ -849,39 +1760,50 @@
 <!-- DC Summary Cards -->
 <div class="dc-summary-grid" id="dc-summary-grid">
     <div class="dc-stat-card" id="dcs-rows">
-        <span class="dc-stat-label"><i class="fas fa-list-ol"></i> Rows</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_rows"><i class="fas fa-list-ol"></i> Rows</span>
         <span class="dc-stat-value" id="dcs-rows-val">{{ quality_full.summary.total_rows }}</span>
     </div>
     <div class="dc-stat-card" id="dcs-cols">
-        <span class="dc-stat-label"><i class="fas fa-columns"></i> Columns</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_columns"><i class="fas fa-columns"></i> Columns</span>
         <span class="dc-stat-value" id="dcs-cols-val">{{ quality_full.summary.total_cols }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.duplicate_rows > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-dupes">
-        <span class="dc-stat-label"><i class="fas fa-copy"></i> Duplicates</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_duplicates"><i class="fas fa-copy"></i> Duplicates</span>
         <span class="dc-stat-value" id="dcs-dupes-val">{{ quality_full.summary.duplicate_rows }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.missing_cells > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-missing">
-        <span class="dc-stat-label"><i class="fas fa-question-circle"></i> Missing</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_missing"><i class="fas fa-question-circle"></i> Missing</span>
         <span class="dc-stat-value" id="dcs-missing-val">{{ quality_full.summary.missing_cells }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.total_outliers > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-outliers">
-        <span class="dc-stat-label"><i class="fas fa-exclamation"></i> Outliers</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_outliers"><i class="fas fa-exclamation"></i> Outliers</span>
         <span class="dc-stat-value" id="dcs-outliers-val">{{ quality_full.summary.total_outliers }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.inconsistency_count > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-incons">
-        <span class="dc-stat-label"><i class="fas fa-random"></i> Inconsistencies</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_inconsistencies"><i class="fas fa-random"></i> Inconsistencies</span>
         <span class="dc-stat-value" id="dcs-incons-val">{{ quality_full.summary.inconsistency_count }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.irrelevant_count > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-irrel">
-        <span class="dc-stat-label"><i class="fas fa-filter"></i> Irrelevant Cols</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_irrelevant"><i class="fas fa-filter"></i> Irrelevant Cols</span>
         <span class="dc-stat-value" id="dcs-irrel-val">{{ quality_full.summary.irrelevant_count }}</span>
     </div>
     <div class="dc-stat-card" id="dcs-dtypes">
-        <span class="dc-stat-label"><i class="fas fa-code"></i> Data Types</span>
+        <span class="dc-stat-label" data-i18n="cleaning_stat_data_types"><i class="fas fa-code"></i> Data Types</span>
         <span class="dc-stat-value" id="dcs-dtypes-val" style="font-size:.8rem;font-weight:600;">
             {% for k,v in quality_full.summary.dtypes.items() %}{{ k }}:{{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
         </span>
     </div>
+</div>
+
+<!-- Quick Fix card -->
+<div class="dc-quickfix-card">
+    <div>
+        <h4><i class="fas fa-bolt"></i> Aksi Cepat</h4>
+        <p>Perbaiki semua masalah data dalam satu klik — isi missing, hapus duplikat, bersihkan teks, cap outlier, drop kolom irelevan, dan konversi tipe data.</p>
+    </div>
+    <button class="dc-btn-quickfix" id="dc-btn-quickfix" onclick="DCleaning.quickFix()">
+        <i class="fas fa-rocket"></i> Jalankan Aksi Cepat
+    </button>
 </div>
 
 <!-- DC 3-col layout -->
@@ -890,17 +1812,24 @@
     <!-- KIRI: Operation Panel -->
     <div class="card dc-ops-card">
         <div style="padding:14px 18px 12px;border-bottom:1px solid var(--border);">
-            <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;" data-translate="cleaning_ops">
+            <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;" data-i18n="cleaning_ops">
                 <i class="fas fa-sliders-h text-blue"></i> Operasi Cleaning
             </h4>
-            <p style="font-size:.72rem;color:var(--muted);margin-top:4px;" data-translate="cleaning_subdesc">Pilih operasi → Preview → Apply</p>
+            <p style="font-size:.72rem;color:var(--muted);margin-top:4px;" data-i18n="cleaning_subdesc">Pilih operasi → Preview → Apply</p>
+        </div>
+        <div class="dc-toggle-row">
+            <label class="dc-toggle-switch">
+                <input type="checkbox" id="dc-show-all-cleaning">
+                <span class="dc-toggle-slider"></span>
+            </label>
+            <label class="dc-toggle-label" for="dc-show-all-cleaning" data-i18n="cleaning_show_all">Show All Options</label>
         </div>
 
         <!-- Handle Missing Value -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-question-circle text-red"></i> Handle Missing Value</div>
+        <div class="dc-ops-section" data-issue-card="dcs-missing">
+            <div class="dc-section-title"><i class="fas fa-question-circle text-red"></i> <span data-i18n="cleaning_handle_missing">Handle Missing Value</span></div>
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-missing')">
-                <span><i class="fas fa-fill-drip" style="margin-right:7px;"></i>Isi Missing Value</span>
+                <span><i class="fas fa-fill-drip" style="margin-right:7px;"></i><span data-i18n="cleaning_fill_missing">Isi Missing Value</span></span>
                 <i class="fas fa-chevron-down" id="icon-panel-missing"></i>
             </button>
             <div class="dc-sub-panel" id="panel-missing">
@@ -932,15 +1861,15 @@
                     <div class="dc-col-checklist" id="missing-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('handle_missing')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('handle_missing')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('handle_missing')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('handle_missing')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
 
         <!-- Remove Outliers -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-exclamation-triangle text-orange"></i> Remove Outliers</div>
+        <div class="dc-ops-section" data-issue-card="dcs-outliers">
+            <div class="dc-section-title"><i class="fas fa-exclamation-triangle text-orange"></i> <span data-i18n="cleaning_remove_outliers">Remove Outliers</span></div>
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-outliers')">
                 <span><i class="fas fa-filter" style="margin-right:7px;"></i>Handle Outliers</span>
                 <i class="fas fa-chevron-down" id="icon-panel-outliers"></i>
@@ -976,15 +1905,15 @@
                     <div class="dc-col-checklist" id="outlier-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('remove_outliers')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('remove_outliers')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('remove_outliers')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('remove_outliers')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
 
         <!-- Normalize Data -->
         <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-compress-arrows-alt text-purple"></i> Normalize Data</div>
+            <div class="dc-section-title"><i class="fas fa-compress-arrows-alt text-purple"></i> <span data-i18n="cleaning_normalize">Normalize Data</span></div>
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-normalize')">
                 <span><i class="fas fa-balance-scale" style="margin-right:7px;"></i>Normalisasi Data</span>
                 <i class="fas fa-chevron-down" id="icon-panel-normalize"></i>
@@ -1009,15 +1938,15 @@
                     <div class="dc-col-checklist" id="norm-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('normalize')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('normalize')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('normalize')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('normalize')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
 
         <!-- Fix Inconsistencies -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-random text-blue"></i> Fix Inconsistencies</div>
+        <div class="dc-ops-section" data-issue-card="dcs-incons">
+            <div class="dc-section-title"><i class="fas fa-random text-blue"></i> <span data-i18n="cleaning_fix_inconsistencies">Fix Inconsistencies</span></div>
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-inconsistencies')">
                 <span><i class="fas fa-magic" style="margin-right:7px;"></i>Perbaiki Inkonsistensi</span>
                 <i class="fas fa-chevron-down" id="icon-panel-inconsistencies"></i>
@@ -1033,15 +1962,102 @@
                     </select>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('fix_inconsistencies')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('fix_inconsistencies')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('fix_inconsistencies')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('fix_inconsistencies')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Convert Dtypes -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-exchange-alt text-blue"></i> <span data-i18n="cleaning_convert_dtypes">Convert Dtypes</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-convdt')">
+                <span><i class="fas fa-arrow-right" style="margin-right:7px;"></i>Konversi Tipe Data</span>
+                <i class="fas fa-chevron-down" id="icon-panel-convdt"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-convdt">
+                <div class="dc-field">
+                    <label>Target Konversi</label>
+                    <select id="convdt-target">
+                        <option value="all">Semua (datetime + numeric)</option>
+                        <option value="datetime">Datetime saja</option>
+                        <option value="numeric">Numeric saja</option>
+                    </select>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('convert_dtypes')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('convert_dtypes')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Standardize Numeric -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-dollar-sign text-green"></i> <span data-i18n="cleaning_standardize_numeric">Standardize Numeric</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-stdnum')">
+                <span><i class="fas fa-coins" style="margin-right:7px;"></i>Standardisasi Numerik</span>
+                <i class="fas fa-chevron-down" id="icon-panel-stdnum"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-stdnum">
+                <div class="dc-field">
+                    <label>Terapkan ke Kolom</label>
+                    <select id="stdnum-scope">
+                        <option value="all">Auto-Detect (kolom dengan format kotor)</option>
+                        <option value="select">Pilih Kolom Tertentu</option>
+                    </select>
+                </div>
+                <div class="dc-field" id="stdnum-cols-wrap" style="display:none;">
+                    <label>Pilih Kolom</label>
+                    <div class="dc-col-checklist" id="stdnum-cols-list"></div>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('standardize_numeric')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('standardize_numeric')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Standardize Categorical -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-tags text-yellow"></i> <span data-i18n="cleaning_standardize_categorical">Standardize Categorical</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-stdcat')">
+                <span><i class="fas fa-check-double" style="margin-right:7px;"></i>Standardisasi Kategorikal</span>
+                <i class="fas fa-chevron-down" id="icon-panel-stdcat"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-stdcat">
+                <div class="dc-field">
+                    <label><input type="checkbox" id="stdcat-bool" checked> Normalisasi boolean (Y/yes/Ya → Yes, T/tidak/No → No)</label>
+                </div>
+                <div class="dc-field">
+                    <label>Case Normalization</label>
+                    <select id="stdcat-case">
+                        <option value="">Biarkan apa adanya</option>
+                        <option value="title">Title Case</option>
+                        <option value="lower">Lowercase</option>
+                        <option value="upper">Uppercase</option>
+                    </select>
+                </div>
+                <div class="dc-field">
+                    <label>Terapkan ke Kolom</label>
+                    <select id="stdcat-scope">
+                        <option value="all">Semua Kolom Teks</option>
+                        <option value="select">Pilih Kolom Tertentu</option>
+                    </select>
+                </div>
+                <div class="dc-field" id="stdcat-cols-wrap" style="display:none;">
+                    <label>Pilih Kolom</label>
+                    <div class="dc-col-checklist" id="stdcat-cols-list"></div>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('standardize_categorical')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('standardize_categorical')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
 
         <!-- Irrelevant Columns -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-filter text-orange"></i> Irrelevant Columns</div>
+        <div class="dc-ops-section" data-issue-card="dcs-irrel">
+            <div class="dc-section-title"><i class="fas fa-filter text-orange"></i> <span data-i18n="cleaning_irrelevant_cols">Irrelevant Columns</span></div>
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-irrelevant')">
                 <span><i class="fas fa-trash-can" style="margin-right:7px;"></i>Drop Irrelevant Cols</span>
                 <i class="fas fa-chevron-down" id="icon-panel-irrelevant"></i>
@@ -1056,14 +2072,14 @@
                     </select>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('drop_irrelevant_cols')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('drop_irrelevant_cols')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('drop_irrelevant_cols')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('drop_irrelevant_cols')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
 
         <!-- Quick Actions -->
-        <div class="dc-ops-section">
+        <div class="dc-ops-section" data-issue-card="dcs-dupes">
             <div class="dc-section-title"><i class="fas fa-bolt text-orange"></i> Quick Actions</div>
             <button class="dc-op-btn" onclick="DCleaning.applyQuick('drop_duplicates')">
                 <span><i class="fas fa-clone" style="margin-right:7px;"></i>Hapus Duplikat</span><i class="fas fa-play"></i>
@@ -1088,8 +2104,8 @@
                     </select>
                 </div>
                 <div class="dc-action-row">
-                    <button class="dc-btn-preview" onclick="DCleaning.preview('drop_high_missing')"><i class="fas fa-eye"></i> Preview</button>
-                    <button class="dc-btn-apply"   onclick="DCleaning.apply('drop_high_missing')"><i class="fas fa-check"></i> Apply</button>
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('drop_high_missing')"><i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span></button>
+                    <button class="dc-btn-apply"   onclick="DCleaning.apply('drop_high_missing')"><i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span></button>
                 </div>
             </div>
         </div>
@@ -1100,10 +2116,10 @@
         <!-- Card 1: Data Quality Report -->
         <div class="card dc-quality-card" style="display:flex; flex-direction:column; height:auto;">
             <div class="quality-col-header">
-                <h4><i class="fas fa-clipboard-check text-purple"></i> Data Quality Report</h4>
+                <h4><i class="fas fa-clipboard-check text-purple"></i> <span data-i18n="dq_report_title">Data Quality Report</span></h4>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                     <span id="dc-quality-badge-wrap"></span>
-                    <button class="dc-btn-refresh-q" onclick="DCleaning.refreshQuality()">
+                    <button class="dc-btn-refresh-q" onclick="DCleaning.refreshQuality()" data-i18n="cleaning_refresh">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                 </div>
@@ -1112,8 +2128,8 @@
                 <table class="data-table" id="dc-quality-table" style="width:100%">
                     <thead>
                         <tr>
-                            <th>Column</th><th>Data Type</th><th>Missing</th><th>Missing %</th>
-                            <th>Unique</th><th>Outliers</th><th>Issues</th><th>Status</th>
+                            <th>Column</th><th>Data Type</th><th data-i18n="cleaning_stat_missing">Missing</th><th data-i18n="ov_table_missing_pct">Missing %</th>
+                            <th data-i18n="ov_table_unique">Unique</th><th data-i18n="cleaning_stat_outliers">Outliers</th><th>Issues</th><th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="dc-quality-tbody">
@@ -1205,6 +2221,39 @@
                 </ul>
             </div>
         </div><!-- end health card -->
+
+        <!-- Card 3: Dataset Integrity Composition Bar -->
+        <div class="card" style="display:flex; flex-direction:column; padding: 20px;">
+            <div style="padding-bottom:12px; border-bottom:1px solid var(--border); margin-bottom: 14px;">
+                <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;">
+                    <i class="fas fa-layer-group text-blue"></i> Dataset Integrity Composition
+                </h4>
+            </div>
+            <div style="margin-bottom: 8px;">
+                <div class="composition-bar">
+                    <div class="composition-segment composition-clean" id="comp-clean" style="width:0%;"></div>
+                    <div class="composition-segment composition-outlier" id="comp-outlier" style="width:0%;"></div>
+                    <div class="composition-segment composition-missing" id="comp-missing" style="width:0%;"></div>
+                </div>
+            </div>
+            <div class="composition-legend">
+                <div class="composition-legend-item">
+                    <span class="composition-dot composition-dot-clean"></span>
+                    <span class="composition-label">Clean Data</span>
+                    <span class="composition-value" id="comp-clean-val">0%</span>
+                </div>
+                <div class="composition-legend-item">
+                    <span class="composition-dot composition-dot-outlier"></span>
+                    <span class="composition-label">Outliers</span>
+                    <span class="composition-value" id="comp-outlier-val">0%</span>
+                </div>
+                <div class="composition-legend-item">
+                    <span class="composition-dot composition-dot-missing"></span>
+                    <span class="composition-label">Missing Rows</span>
+                    <span class="composition-value" id="comp-missing-val">0%</span>
+                </div>
+            </div>
+        </div>
     </div><!-- end dc-middle-col -->
 
     <!-- KANAN: History / Undo Panel -->
@@ -1283,12 +2332,19 @@ var DCleaning = (function () {
     var BASE     = '/api/cleaning';
     var _pendingOp = null;
     var _colsCache = null;
+    var _wasFullyClean = (function() {
+        try {
+            var s = {{ quality_full.summary | tojson }};
+            return (s.missing_cells === 0 && s.duplicate_rows === 0 && s.total_outliers === 0 && s.inconsistency_count === 0 && s.irrelevant_count === 0);
+        } catch(e) { return false; }
+    })();
 
     function _fetchCols() {
         if (_colsCache) return Promise.resolve(_colsCache);
         return fetch(BASE + '/columns/' + FILENAME)
             .then(function(r){ return r.json(); })
-            .then(function(d){ if (d.ok) _colsCache = d.columns; return _colsCache || []; });
+            .then(function(d){ if (d.ok) _colsCache = d.columns; return _colsCache || []; })
+            .catch(function(err){ console.error("[_fetchCols] Error:", err); return []; });
     }
 
     function _buildChecklist(containerId, cols, filterFn) {
@@ -1315,6 +2371,7 @@ var DCleaning = (function () {
 
     function togglePanel(panelId) {
         var panel = document.getElementById(panelId);
+
         var icon  = document.getElementById('icon-' + panelId);
         if (!panel) return;
         var isOpen = panel.classList.contains('open');
@@ -1327,11 +2384,14 @@ var DCleaning = (function () {
         }
     }
 
+
     function _populatePanelCols(panelId) {
         _fetchCols().then(function(cols) {
             if (panelId==='panel-missing')   _buildChecklist('missing-cols-list', cols);
             if (panelId==='panel-outliers')  _buildChecklist('outlier-cols-list', cols, function(c){ return c.is_numeric; });
             if (panelId==='panel-normalize') _buildChecklist('norm-cols-list',    cols, function(c){ return c.is_numeric; });
+            if (panelId==='panel-stdnum')     _buildChecklist('stdnum-cols-list', cols);
+            if (panelId==='panel-stdcat')     _buildChecklist('stdcat-cols-list', cols);
         });
     }
 
@@ -1365,6 +2425,21 @@ var DCleaning = (function () {
             return { threshold: parseFloat(document.getElementById('irrelevant-threshold').value) };
         }
         if (op_type==='drop_high_missing') return {threshold:parseFloat(document.getElementById('dropmiss-thresh').value)};
+        if (op_type==='convert_dtypes') {
+            return { target: document.getElementById('convdt-target').value };
+        }
+        if (op_type==='standardize_numeric') {
+            var scope=document.getElementById('stdnum-scope').value;
+            var params={};
+            if (scope==='select') params.columns=_getChecked('stdnum-cols-list');
+            return params;
+        }
+        if (op_type==='standardize_categorical') {
+            var scope=document.getElementById('stdcat-scope').value;
+            var params={bool_normalize:document.getElementById('stdcat-bool').checked,normalize_case:document.getElementById('stdcat-case').value};
+            if (scope==='select') params.columns=_getChecked('stdcat-cols-list');
+            return params;
+        }
         return {};
     }
 
@@ -1400,62 +2475,117 @@ var DCleaning = (function () {
     function apply(op_type) { _doApply(op_type,_buildParams(op_type)); }
     function applyQuick(op_type) { _doApply(op_type,{}); }
 
+    function quickFix() {
+        var btn=document.getElementById('dc-btn-quickfix');
+        if (btn) btn.disabled=true;
+        _showSpinner('Menjalankan Aksi Cepat...');
+        fetch(BASE+'/quickfix/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (!d.ok){ _hideSpinner(); showToast(d.error||'Aksi Cepat gagal.','error'); if(btn) btn.disabled=false; return; }
+                _colsCache=null;
+                _updateUI(d, d.data_status === 'clean');
+                showToast('Berhasil: '+d.label,'success');
+            })
+            .catch(function(e){ _hideSpinner(); showToast('Aksi Cepat error: '+e.message,'error'); if(btn) btn.disabled=false; });
+    }
+
+    function _showSpinner(msg) {
+        var el=document.getElementById('cleaning-spinner-overlay');
+        var txt=document.getElementById('cleaning-spinner-text');
+        if (el) el.style.display='flex';
+        if (txt) txt.textContent=msg||'Memproses data...';
+    }
+    function _hideSpinner() {
+        var el=document.getElementById('cleaning-spinner-overlay');
+        if (el) el.style.display='none';
+    }
+    function _showCleanedSuccess() {
+        var spinner = document.querySelector('.cleaning-spinner');
+        if (spinner) spinner.className = 'cleaning-spinner cleaning-spinner--done';
+        var txt = document.getElementById('cleaning-spinner-text');
+        if (txt) {
+            txt.textContent = '✅ Data telah clean!';
+            txt.style.color = '#6ee7b7';
+            txt.style.fontSize = '1.1rem';
+        }
+        var overlay = document.getElementById('cleaning-spinner-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.classList.add('cleaning-overlay--done');
+        }
+        setTimeout(function () {
+            if (overlay) { overlay.style.transition = 'opacity .5s ease'; overlay.style.opacity = '0'; }
+            setTimeout(function () { location.reload(); }, 550);
+        }, 1800);
+    }
+
     function _doApply(op_type,op_params) {
+        _showSpinner('Menerapkan operasi cleaning...');
         fetch(BASE+'/apply/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op_type:op_type,op_params:op_params})})
             .then(function(r){ return r.json(); })
             .then(function(d){
-                if (!d.ok){ showToast(d.error||'Operasi gagal.', 'error'); return; }
-                triggerToastAfterReload('Berhasil menerapkan: ' + d.label, 'success');
-                localStorage.setItem('ds_active_tab', 'cleaning');
-                window.location.reload();
+                if (!d.ok){ _hideSpinner(); showToast(d.error||'Operasi gagal.', 'error'); return; }
+                _colsCache = null;
+                _updateUI(d, d.data_status === 'clean');
+                showToast('Berhasil: ' + d.label, 'success');
             })
-            .catch(function(e){ showToast('Apply error: '+e.message, 'error'); });
+            .catch(function(e){ _hideSpinner(); showToast('Apply error: '+e.message, 'error'); });
     }
 
     function undoLast() {
+        _showSpinner('Membatalkan langkah terakhir...');
         fetch(BASE+'/undo/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})})
             .then(function(r){ return r.json(); })
             .then(function(d){
+                _hideSpinner();
                 if (!d.ok){ showToast(d.error||'Undo gagal.', 'error'); return; }
-                triggerToastAfterReload('Undo berhasil: kembali ke "' + d.current_label + '"', 'warning');
-                localStorage.setItem('ds_active_tab', 'cleaning');
-                window.location.reload();
+                _colsCache = null;
+                _updateUI(d, d.history && d.history.length > 1);
+                showToast('Undo berhasil: kembali ke "' + d.current_label + '"', 'warning');
             })
-            .catch(function(e){ showToast('Undo error: '+e.message, 'error'); });
+            .catch(function(e){ _hideSpinner(); showToast('Undo error: '+e.message, 'error'); });
     }
 
     function undoToFromUI(index,isInitial) {
         if (isInitial){ confirmReset(); return; }
+        _showSpinner('Mengembalikan ke state sebelumnya...');
         fetch(BASE+'/undo/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:index})})
             .then(function(r){ return r.json(); })
             .then(function(d){
+                _hideSpinner();
                 if (!d.ok){ showToast(d.error||'Undo gagal.', 'error'); return; }
-                triggerToastAfterReload('Undo berhasil: kembali ke "' + d.current_label + '"', 'success');
-                localStorage.setItem('ds_active_tab', 'cleaning');
-                window.location.reload();
+                _colsCache = null;
+                _updateUI(d, d.history && d.history.length > 1);
+                showToast('Undo berhasil: kembali ke "' + d.current_label + '"', 'success');
             })
-            .catch(function(e){ showToast('Undo error: '+e.message, 'error'); });
+            .catch(function(e){ _hideSpinner(); showToast('Undo error: '+e.message, 'error'); });
     }
 
     function confirmReset() {
         if (!confirm('Reset semua langkah cleaning ke data awal (raw)?')) return;
+        _showSpinner('Meriset data ke kondisi awal...');
         fetch(BASE+'/reset/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})})
             .then(function(r){ return r.json(); })
             .then(function(d){
+                _hideSpinner();
                 if (!d.ok){ showToast(d.error||'Reset gagal.', 'error'); return; }
-                triggerToastAfterReload('Data direset ke kondisi awal (raw data).', 'warning');
-                localStorage.setItem('ds_active_tab', 'cleaning');
-                window.location.reload();
+                _colsCache = null;
+                _updateUI(d, false);
+                showToast('Data direset ke kondisi awal (raw data).', 'warning');
             })
-            .catch(function(e){ showToast('Reset error: '+e.message, 'error'); });
+            .catch(function(e){ _hideSpinner(); showToast('Reset error: '+e.message, 'error'); });
     }
 
     function refreshQuality() {
-        fetch(BASE+'/status/'+FILENAME).then(function(r){ return r.json(); }).then(function(d){ if (!d.ok) return; _updateQualityTable(d.quality); _updateSummaryCards(d.quality.summary,d.rows,d.cols); });
+        fetch(BASE+'/status/'+FILENAME).then(function(r){ return r.json(); }).then(function(d){ if (!d.ok) return; _updateQualityTable(d.quality); _updateSummaryCards(d.quality.summary,d.rows,d.cols); }).catch(function(err){ console.error('[refreshQuality] Error:', err); });
     }
 
     function _updateUI(d,isCleaned) {
-        if (d.quality&&d.quality.summary) _updateSummaryCards(d.quality.summary,d.rows_now,d.cols_now);
+        if (d.quality&&d.quality.summary) {
+            _updateSummaryCards(d.quality.summary,d.rows_now,d.cols_now);
+            _syncPanelsToCards();
+        }
         if (d.quality&&d.quality.columns) _updateQualityTable(d.quality);
         if (d.history) _renderHistory(d.history);
         _updateStatusBadge(isCleaned);
@@ -1467,6 +2597,19 @@ var DCleaning = (function () {
         var sb=document.getElementById('db-banner-success');
         if (isCleaned) { if(wb) wb.style.display='none'; if(sb) sb.style.display='flex'; }
         else           { if(sb) sb.style.display='none'; if(wb) wb.style.display='flex'; }
+        // Reload page when data_status changes (raw↔clean) so dashboard renders ulang
+        // (data_status from backend is authoritative — matches detect_data_status())
+        if (d.data_status && d.data_status !== 'raw' && !_wasFullyClean) {
+            _wasFullyClean = true;
+            _showCleanedSuccess();
+        } else if (d.data_status === 'raw') {
+            // Reload baik dari clean→raw (undo) maupun raw masih ada masalah,
+            // agar server-side overview KPIs selalu fresh
+            _wasFullyClean = false;
+            location.reload();
+        } else {
+            _hideSpinner();
+        }
     }
 
     function _updateSummaryCards(s,rows,cols) {
@@ -1475,6 +2618,7 @@ var DCleaning = (function () {
         _setText('dcs-outliers-val',s.total_outliers); _setText('dcs-incons-val',s.inconsistency_count); _setText('dcs-irrel-val',s.irrelevant_count);
         _setCardState('dcs-dupes',s.duplicate_rows>0); _setCardState('dcs-missing',s.missing_cells>0);
         _setCardState('dcs-outliers',s.total_outliers>0); _setCardState('dcs-incons',s.inconsistency_count>0); _setCardState('dcs-irrel',s.irrelevant_count>0);
+        _syncPanelsToCards();
         if (s.dtypes) _setText('dcs-dtypes-val',Object.entries(s.dtypes).map(function(kv){ return kv[0]+':'+kv[1]; }).join(' · '));
         _updateHealthDashboard(s, rows, cols);
     }
@@ -1542,6 +2686,32 @@ var DCleaning = (function () {
             }
             recList.innerHTML = recs.join('');
         }
+        _updateCompositionBar(s, rows, cols);
+    }
+
+    function _updateCompositionBar(s, rows, cols) {
+        var totalRows = rows || 1;
+        var outlierRows = s.total_outliers || 0;
+        var missingRows = s.missing_cells || 0;
+        var cleanRows = Math.max(0, totalRows - outlierRows - missingRows);
+
+        var cleanPct = totalRows > 0 ? (cleanRows / totalRows) * 100 : 0;
+        var outlierPct = totalRows > 0 ? (outlierRows / totalRows) * 100 : 0;
+        var missingPct = totalRows > 0 ? (missingRows / totalRows) * 100 : 0;
+
+        var cleanEl = document.getElementById('comp-clean');
+        var outlierEl = document.getElementById('comp-outlier');
+        var missingEl = document.getElementById('comp-missing');
+        if (cleanEl) cleanEl.style.width = cleanPct + '%';
+        if (outlierEl) outlierEl.style.width = outlierPct + '%';
+        if (missingEl) missingEl.style.width = missingPct + '%';
+
+        var cleanVal = document.getElementById('comp-clean-val');
+        var outlierVal = document.getElementById('comp-outlier-val');
+        var missingVal = document.getElementById('comp-missing-val');
+        if (cleanVal) cleanVal.textContent = Math.round(cleanPct) + '% (' + cleanRows + ')';
+        if (outlierVal) outlierVal.textContent = Math.round(outlierPct) + '% (' + outlierRows + ')';
+        if (missingVal) missingVal.textContent = Math.round(missingPct) + '% (' + missingRows + ')';
     }
 
     function _setCardState(id,hasIssue) {
@@ -1549,6 +2719,20 @@ var DCleaning = (function () {
         if (!el) return;
         el.classList.toggle('has-issue',hasIssue); el.classList.toggle('all-good',!hasIssue);
     }
+
+    /* Sync panel visibility to stat cards */
+    function _syncPanelsToCards() {
+        var showAll = document.getElementById('dc-show-all-cleaning').checked;
+        document.querySelectorAll('.dc-ops-section[data-issue-card]').forEach(function(section) {
+            if (showAll) { section.style.display = ''; return; }
+            var cardId = section.getAttribute('data-issue-card');
+            var card = document.getElementById(cardId);
+            var hasIssue = card && card.classList.contains('has-issue');
+            section.style.display = hasIssue ? '' : 'none';
+        });
+    }
+
+    function toggleShowAll() { _syncPanelsToCards(); }
 
     function _updateQualityTable(quality) {
         var tbody=document.getElementById('dc-quality-tbody');
@@ -1593,7 +2777,7 @@ var DCleaning = (function () {
             if (cleanEl) { var w=cleanEl.closest('.table-scroll-wrapper'); if(w) w.innerHTML=d.html; }
             var statusEl=document.getElementById('preview-status-label');
             if (statusEl) statusEl.innerHTML=d.is_cleaned?'<span class="badge badge-success" style="font-size:.78rem;padding:5px 12px;"><i class="fas fa-check-circle"></i> Showing Cleaned Data</span>':'<span class="badge badge-warning" style="font-size:.78rem;padding:5px 12px;"><i class="fas fa-exclamation-triangle"></i> Showing Raw Data</span>';
-        });
+        }).catch(function(err){ console.error('[_refreshPreviewTab] Error:', err); });
     }
 
     function _showBanner(type,msg) {
@@ -1649,9 +2833,14 @@ var DCleaning = (function () {
 
         var modal=document.getElementById('dc-preview-modal');
         if (modal) modal.addEventListener('click',function(e){ if(e.target===modal) closePreview(); });
+
+        // Show All toggle
+        var showAllToggle=document.getElementById('dc-show-all-cleaning');
+        if (showAllToggle) showAllToggle.addEventListener('change',_syncPanelsToCards);
+        _syncPanelsToCards();
     }
 
-    return { togglePanel:togglePanel, preview:preview, closePreview:closePreview, apply:apply, applyQuick:applyQuick, undoLast:undoLast, undoToFromUI:undoToFromUI, confirmReset:confirmReset, refreshQuality:refreshQuality, init:init };
+    return { togglePanel:togglePanel, preview:preview, closePreview:closePreview, apply:apply, applyQuick:applyQuick, quickFix:quickFix, undoLast:undoLast, undoToFromUI:undoToFromUI, confirmReset:confirmReset, refreshQuality:refreshQuality, toggleShowAll:toggleShowAll, init:init };
 })();
 </script>
 
@@ -1660,20 +2849,29 @@ var DCleaning = (function () {
 
 <!-- ══════════════ TAB 3: NUMERICAL STATS ══════════════ -->
 <div id="tab-numerical" class="tab-content" style="display:none;">
+    {% if data_status == 'raw' %}
+    <div class="card" style="text-align:center;padding:60px 20px;">
+        <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+        <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+        <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+        <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+    </div>
+    {% else %}
     <div class="card full-card">
         <div class="card-header-clean">
-            <h3><i class="fas fa-hashtag text-orange"></i> Numerical Summary</h3>
+            <h3><i class="fas fa-hashtag text-orange"></i> <span data-i18n="num_stats_title">Numerical Summary</span></h3>
         </div>
         <div class="table-scroll-wrapper">
             <table class="data-table display nowrap" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Variable</th><th>Mean</th><th>Median</th><th>Min</th><th>Max</th>
-                        <th>Std Dev</th><th>Variance</th><th>Mode</th><th>Skewness</th>
-                        <th>Kurtosis</th><th>Missing</th><th>Missing %</th><th>Normality</th><th>Outliers</th>
+                        <th data-i18n="num_stats_th_variable">Variable</th><th data-i18n="ov_table_mean">Mean</th><th data-i18n="ov_table_median">Median</th><th data-i18n="ov_table_min">Min</th><th data-i18n="ov_table_max">Max</th>
+                        <th data-i18n="ov_table_std">Std Dev</th><th data-i18n="ov_table_variance">Variance</th><th data-i18n="ov_table_mode">Mode</th><th data-i18n="ov_table_skewness">Skewness</th>
+                        <th data-i18n="ov_table_kurtosis">Kurtosis</th><th data-i18n="ov_table_missing">Missing</th><th data-i18n="ov_table_missing_pct">Missing %</th><th data-i18n="ov_table_normality">Normality</th><th data-i18n="ov_table_outliers">Outliers</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% if num_stats %}
                     {% for stat in num_stats %}
                     <tr>
                         <td class="var-name">{{ stat['Column'] }}</td>
@@ -1685,32 +2883,45 @@ var DCleaning = (function () {
                         <td class="text-warning">{{ stat['Missing Count'] }}</td>
                         <td class="text-warning">{{ stat['Missing %'] }}</td>
                         <td>
-                            {% if stat['Normality'] == 'Normal' %}<span class="badge badge-success">Normal</span>
-                            {% elif stat['Normality'] == 'Not Normal' %}<span class="badge badge-danger">Not Normal</span>
+                            {% if stat['Normality'] == 'Normal' %}<span class="badge badge-success" data-i18n="num_stats_normal">Normal</span>
+                            {% elif stat['Normality'] == 'Not Normal' %}<span class="badge badge-danger" data-i18n="num_stats_not_normal">Not Normal</span>
                             {% else %}<span class="badge badge-muted">{{ stat['Normality'] }}</span>{% endif %}
                         </td>
                         <td><strong class="text-danger">{{ stat['Outliers'] }}</strong></td>
                     </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr><td colspan="14" class="text-muted" style="text-align:center;padding:20px;" data-i18n="ov_no_numeric">No numeric columns available</td></tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
+{% endif %}
 </div>
 
 
 <!-- ══════════════ TAB 4: CATEGORICAL STATS ══════════════ -->
 <div id="tab-categorical" class="tab-content" style="display:none;">
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+</div>
+{% else %}
     <div class="card full-card">
         <div class="card-header-clean">
-            <h3><i class="fas fa-font text-purple"></i> Categorical Summary</h3>
+            <h3><i class="fas fa-font text-purple"></i> <span data-i18n="cat_stats_title">Categorical Summary</span></h3>
         </div>
         <div class="table-scroll-wrapper">
             <table class="data-table display nowrap" style="width:100%">
                 <thead>
-                    <tr><th>Variable</th><th>Unique</th><th>Mode</th><th>Mode Freq</th><th>Mode %</th><th>Missing</th><th>Missing %</th></tr>
+                    <tr><th data-i18n="cat_stats_th_variable">Variable</th><th data-i18n="ov_table_unique">Unique</th><th data-i18n="ov_table_mode">Mode</th><th data-i18n="ov_table_mode_freq">Mode Freq</th><th data-i18n="ov_table_mode_pct">Mode %</th><th data-i18n="ov_table_missing">Missing</th><th data-i18n="ov_table_missing_pct">Missing %</th></tr>
                 </thead>
                 <tbody>
+                    {% if cat_stats %}
                     {% for stat in cat_stats %}
                     <tr>
                         <td class="var-name">{{ stat['Column'] }}</td>
@@ -1720,29 +2931,41 @@ var DCleaning = (function () {
                         <td class="text-warning">{{ stat['Missing %'] }}</td>
                     </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:20px;" data-i18n="ov_no_categorical">No categorical columns available</td></tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
+{% endif %}
 </div>
 
 
 <!-- ══════════════ TAB 5: ADVANCED STATS ══════════════ -->
 <div id="tab-advanced" class="tab-content" style="display:none;">
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+</div>
+{% else %}
     <div class="dashboard-header mb-4">
-        <h2><i class="fas fa-flask text-green"></i> Advanced Analytics — Week 15</h2>
+        <h2><i class="fas fa-flask text-green"></i> <span data-i18n="adv_stats_title">Advanced Analytics — Week 15</span></h2>
     </div>
 
     {% if advanced.adv_num %}
     <div class="card full-card mb-4">
         <div class="card-header-clean">
-            <h4><i class="fas fa-ruler text-blue"></i> Advanced Numerical Statistics</h4>
-            <small class="text-muted">Quartile · IQR · CV · Percentile · Shapiro-Wilk</small>
+            <h4><i class="fas fa-ruler text-blue"></i> <span data-i18n="adv_num_stats_title">Advanced Numerical Statistics</span></h4>
+            <small class="text-muted" data-i18n="adv_num_stats_subtitle">Quartile · IQR · CV · Percentile · Shapiro-Wilk</small>
         </div>
         <div class="table-scroll-wrapper">
             <table class="data-table display nowrap" style="width:100%">
                 <thead>
-                    <tr><th>Column</th><th>Q1</th><th>Q2 Median</th><th>Q3</th><th>IQR</th><th>CV (%)</th><th>P5</th><th>P95</th><th>Shapiro-Wilk</th></tr>
+                    <tr><th data-i18n="adv_num_th_column">Column</th><th data-i18n="adv_num_th_q1">Q1</th><th data-i18n="adv_num_th_q2">Q2 Median</th><th data-i18n="adv_num_th_q3">Q3</th><th data-i18n="adv_num_th_iqr">IQR</th><th data-i18n="adv_num_th_cv">CV (%)</th><th data-i18n="adv_num_th_p5">P5</th><th data-i18n="adv_num_th_p95">P95</th><th data-i18n="adv_num_th_shapiro">Shapiro-Wilk</th></tr>
                 </thead>
                 <tbody>
                     {% for row in advanced.adv_num %}
@@ -1768,16 +2991,16 @@ var DCleaning = (function () {
     <div class="chart-grid-2 mb-4">
         <div class="card chart-card">
             <div class="card-header-clean">
-                <h4><i class="fas fa-link text-orange"></i> Top Correlation Pairs</h4>
+                <h4><i class="fas fa-link text-orange"></i> <span data-i18n="adv_corr_title">Top Correlation Pairs</span></h4>
             </div>
             <table class="simple-table">
-                <thead><tr><th>Variable A</th><th>Variable B</th><th>r</th><th>Strength</th></tr></thead>
+                <thead><tr><th data-i18n="adv_corr_th_a">Variable A</th><th data-i18n="adv_corr_th_b">Variable B</th><th data-i18n="adv_corr_th_r">r</th><th data-i18n="adv_corr_th_strength">Strength</th></tr></thead>
                 <tbody>
                     {% for pair in advanced.top_corr_pairs %}
                     <tr>
                         <td>{{ pair[0] }}</td><td>{{ pair[1] }}</td>
                         <td><span class="corr-badge {% if pair[2]|abs > 0.7 %}corr-strong{% elif pair[2]|abs > 0.4 %}corr-medium{% else %}corr-weak{% endif %}">{{ pair[2] }}</span></td>
-                        <td>{% if pair[2]|abs > 0.7 %}Kuat{% elif pair[2]|abs > 0.4 %}Sedang{% else %}Lemah{% endif %}</td>
+                        <td>{% if pair[2]|abs > 0.7 %}<span data-i18n="adv_corr_strong">Kuat</span>{% elif pair[2]|abs > 0.4 %}<span data-i18n="adv_corr_medium">Sedang</span>{% else %}<span data-i18n="adv_corr_weak">Lemah</span>{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -1787,7 +3010,7 @@ var DCleaning = (function () {
         {% if advanced.cat_assoc %}
         <div class="card chart-card">
             <div class="card-header-clean">
-                <h4><i class="fas fa-project-diagram text-purple"></i> Categorical Association (Cramér's V)</h4>
+                <h4><i class="fas fa-project-diagram text-purple"></i> <span data-i18n="adv_cat_assoc_title">Categorical Association (Cramér's V)</span></h4>
             </div>
             <table class="simple-table">
                 <thead><tr><th>Col A</th><th>Col B</th><th>χ²</th><th>p-value</th><th>V</th><th>Strength</th></tr></thead>
@@ -1811,7 +3034,7 @@ var DCleaning = (function () {
     {% if advanced.num_cat %}
     <div class="card full-card mb-4">
         <div class="card-header-clean">
-            <h4><i class="fas fa-chart-area text-red"></i> Numerical vs Categorical — One-Way ANOVA</h4>
+            <h4><i class="fas fa-chart-area text-red"></i> <span data-i18n="adv_anova_title">Numerical vs Categorical — One-Way ANOVA</span></h4>
         </div>
         <div class="table-scroll-wrapper">
             <table class="data-table display nowrap" style="width:100%">
@@ -1824,8 +3047,8 @@ var DCleaning = (function () {
                         <td class="var-name">{{ row.num }}</td><td class="var-name">{{ row.cat }}</td>
                         <td>{{ row.f_stat }}</td><td>{{ row.p_anova }}</td>
                         <td>
-                            {% if row.significant %}<span class="badge badge-success"><i class="fas fa-check"></i> Yes (p&lt;0.05)</span>
-                            {% else %}<span class="badge badge-muted">Not Significant</span>{% endif %}
+                            {% if row.significant %}<span class="badge badge-success" data-i18n="adv_anova_significant"><i class="fas fa-check"></i> Yes (p&lt;0.05)</span>
+                            {% else %}<span class="badge badge-muted" data-i18n="adv_anova_not_significant">Not Significant</span>{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -1834,14 +3057,23 @@ var DCleaning = (function () {
         </div>
     </div>
     {% endif %}
+{% endif %}
 </div>
 
 
 <!-- ══════════════ TAB 6: VISUALIZATIONS ══════════════ -->
 <div id="tab-visualizations" class="tab-content" style="display:none;">
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+</div>
+{% else %}
     <div class="viz-master-page">
         <div class="viz-master-header">
-            <h2 id="viz-category-title">Visualizations</h2>
+            <h2 id="viz-category-title" data-i18n="viz_title">Visualizations</h2>
             <p class="viz-master-sub">{{ filename }}</p>
         </div>
 
@@ -1850,7 +3082,7 @@ var DCleaning = (function () {
         <div id="viz-placeholder" class="viz-placeholder" style="display:none;">
             <div class="viz-placeholder-inner">
                 <i class="fas fa-chart-area"></i>
-                <p data-translate="viz_placeholder">Dataset is not compatible with this category.</p>
+                <p data-i18n="viz_placeholder">Dataset is not compatible with this category.</p>
             </div>
         </div>
 
@@ -1858,19 +3090,19 @@ var DCleaning = (function () {
             <div id="viz-master-controls" class="viz-master-toolbar">
                 <div class="viz-toolbar-left">
                     <div id="viz-chart-type-select-wrap" class="viz-dd-wrap">
-                        <label for="viz-chart-type-select">Chart Type</label>
+                        <label for="viz-chart-type-select" data-i18n="viz_chart_type_label">Chart Type</label>
                         <select id="viz-chart-type-select"></select>
                     </div>
                     <div id="viz-dd-x-wrap" class="viz-dd-wrap">
-                        <label for="viz-col-x">Kolom X</label>
+                        <label for="viz-col-x" data-i18n="viz_col_x_label">Kolom X</label>
                         <select id="viz-col-x"></select>
                     </div>
                     <div id="viz-dd-y-wrap" class="viz-dd-wrap" style="display:none;">
-                        <label for="viz-col-y">Kolom Y</label>
+                        <label for="viz-col-y" data-i18n="viz_col_y_label">Kolom Y</label>
                         <select id="viz-col-y"></select>
                     </div>
                     <div id="viz-dd-z-wrap" class="viz-dd-wrap" style="display:none;">
-                        <label for="viz-col-z">Ukuran</label>
+                        <label for="viz-col-z" data-i18n="viz_col_z_label">Ukuran</label>
                         <select id="viz-col-z"></select>
                     </div>
                 </div>
@@ -1879,89 +3111,190 @@ var DCleaning = (function () {
             <div id="viz-master-plot" class="viz-master-plot">
                 <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#7EA9FF;">
                     <i class="fas fa-chart-bar" style="font-size:2rem;opacity:.3;"></i>
-                    <span style="margin-left:12px;font-size:.9rem;opacity:.5;" data-translate="viz_select_hint">Select a category from the sidebar to start</span>
+                    <span style="margin-left:12px;font-size:.9rem;opacity:.5;" data-i18n="viz_select_hint">Select a category from the sidebar to start</span>
                 </div>
+            </div>
+
+            <div class="ov-smart-insight" id="viz-insight" style="display:none;">
+                <div class="ov-smart-insight-label" data-i18n="ov_smart_insight">
+                    <i class="fas fa-brain"></i> Smart Insight
+                </div>
+                <div id="viz-insight-items"></div>
             </div>
         </div>
     </div>
+{% endif %}
 </div>
 
 
 <!-- ══════════════ TAB 7: TIME SERIES ══════════════ -->
 <div id="tab-timeseries" class="tab-content" style="display:none;">
 
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+</div>
+{% else %}
     {% if not has_ts %}
     <div class="card full-card mb-4">
         <div class="card-header-clean">
-            <h2 style="margin:0;"><i class="fas fa-clock text-muted"></i> Time Series Analytics</h2>
-            <p class="text-muted" style="margin-top:6px;" data-translate="ts_no_datetime">Dataset does not have a valid datetime column.</p>
+            <h2 style="margin:0;"><i class="fas fa-clock text-muted"></i> <span data-i18n="ts_title">Time Series Analytics</span></h2>
+            <p class="text-muted" style="margin-top:6px;" data-i18n="ts_no_datetime">Dataset does not have a valid datetime column.</p>
         </div>
     </div>
     {% else %}
     <div class="dashboard-header mb-3">
-        <h2><i class="fas fa-chart-line text-green"></i> Time Series Analytics</h2>
-        <p class="text-muted">Auto-detected datetime column</p>
+        <h2><i class="fas fa-chart-line text-green"></i> <span data-i18n="ts_title">Time Series Analytics</span></h2>
+        <p class="text-muted" data-i18n="ts_auto_detected">Auto-detected datetime column</p>
     </div>
 
     {% if ts_meta %}
     <div class="ts-meta-strip mb-4">
-        <div class="ts-meta-item"><span class="ts-meta-label">Date Column</span><span class="ts-meta-value">{{ ts_meta.dt_col }}</span></div>
-        <div class="ts-meta-item"><span class="ts-meta-label">Metric</span><span class="ts-meta-value">{{ ts_meta.num_col }}</span></div>
-        <div class="ts-meta-item"><span class="ts-meta-label">Frequency</span><span class="ts-meta-value">{{ ts_meta.freq_label }}</span></div>
-        <div class="ts-meta-item"><span class="ts-meta-label">Data Points</span><span class="ts-meta-value">{{ ts_meta.n_points }}</span></div>
-        <div class="ts-meta-item"><span class="ts-meta-label">Period</span><span class="ts-meta-value">{{ ts_meta.date_start }} → {{ ts_meta.date_end }}</span></div>
+        <div class="ts-meta-item"><span class="ts-meta-label" data-i18n="ts_meta_date">Date Column</span><span class="ts-meta-value">{{ ts_meta.dt_col }}</span></div>
+        <div class="ts-meta-item"><span class="ts-meta-label" data-i18n="ts_meta_metric">Metric</span>
+            <select id="ts-num-col-select" class="ov-toggle-select ts-meta-value" onchange="switchTsColumn(this.value)">
+                {% for nc in num_cols %}
+                <option value="{{ nc }}" {% if nc == ts_meta.num_col %}selected{% endif %}>{{ nc }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="ts-meta-item"><span class="ts-meta-label" data-i18n="ts_meta_frequency">Frequency</span><span class="ts-meta-value" id="ts-meta-freq">{{ ts_meta.freq_label }}</span></div>
+        <div class="ts-meta-item"><span class="ts-meta-label" data-i18n="ts_meta_data_points">Data Points</span><span class="ts-meta-value" id="ts-meta-points">{{ ts_meta.n_points }}</span></div>
+        <div class="ts-meta-item"><span class="ts-meta-label" data-i18n="ts_meta_period">Period</span><span class="ts-meta-value" id="ts-meta-period">{{ ts_meta.date_start }} → {{ ts_meta.date_end }}</span></div>
     </div>
     {% endif %}
 
     <div id="ts-line" class="ts-subtab-content">
         <div class="card chart-card">
             <div class="card-header-clean">
-                <h4><i class="fas fa-chart-line text-green"></i> Time Series Line Chart <span class="chart-badge">Temporal</span></h4>
+                <h4><i class="fas fa-chart-line text-green"></i> <span data-i18n="ts_line_chart">Time Series Line Chart</span> <span class="chart-badge" data-i18n="ts_badge_temporal">Temporal</span></h4>
             </div>
             <div id="plot-ts-line" class="chart-area" style="min-height:380px;"></div>
         </div>
     </div>
     <div id="ts-trend" class="ts-subtab-content" style="display:none;">
         <div class="card chart-card">
-            <div class="card-header-clean"><h4><i class="fas fa-arrow-trend-up text-blue"></i> Trend Line (OLS) <span class="chart-badge">Regression</span></h4></div>
+            <div class="card-header-clean"><h4><i class="fas fa-arrow-trend-up text-blue"></i> <span data-i18n="ts_trend_line">Trend Line (OLS)</span> <span class="chart-badge" data-i18n="ts_badge_regression">Regression</span></h4></div>
             <div id="plot-ts-trend" class="chart-area" style="min-height:380px;"></div>
         </div>
     </div>
     <div id="ts-ma" class="ts-subtab-content" style="display:none;">
         <div class="card chart-card">
-            <div class="card-header-clean"><h4><i class="fas fa-wave-square text-orange"></i> Moving Average <span class="chart-badge">Smoothing</span></h4></div>
+            <div class="card-header-clean"><h4><i class="fas fa-wave-square text-orange"></i> <span data-i18n="ts_moving_avg">Moving Average</span> <span class="chart-badge" data-i18n="ts_badge_smoothing">Smoothing</span></h4></div>
             <div id="plot-ts-ma" class="chart-area" style="min-height:380px;"></div>
         </div>
     </div>
     <div id="ts-rolling" class="ts-subtab-content" style="display:none;">
         <div class="card chart-card">
-            <div class="card-header-clean"><h4><i class="fas fa-rotate text-purple"></i> Rolling Mean <span class="chart-badge">Smoothing</span></h4></div>
+            <div class="card-header-clean"><h4><i class="fas fa-rotate text-purple"></i> <span data-i18n="ts_rolling_mean">Rolling Mean</span> <span class="chart-badge" data-i18n="ts_badge_smoothing">Smoothing</span></h4></div>
             <div id="plot-ts-rolling" class="chart-area" style="min-height:380px;"></div>
         </div>
     </div>
     <div id="ts-overview" class="ts-subtab-content" style="display:none;">
         <div class="card chart-card">
-            <div class="card-header-clean"><h4><i class="fas fa-border-all text-red"></i> Overview Panel <span class="chart-badge">4-in-1</span></h4></div>
+            <div class="card-header-clean"><h4><i class="fas fa-border-all text-red"></i> <span data-i18n="ts_overview_panel">Overview Panel</span> <span class="chart-badge" data-i18n="ts_badge_4in1">4-in-1</span></h4></div>
             <div id="plot-ts-overview" class="chart-area" style="min-height:540px;"></div>
         </div>
     </div>
     {% endif %}
+{% endif %}
 </div>
 
 
 <!-- ══════════════ TAB 8: SMART INSIGHTS ══════════════ -->
 <div id="tab-insights" class="tab-content" style="display:none;">
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="btn btn-primary mt-3" onclick="switchTab('cleaning')" data-i18n="ov_cleaning_required"><i class="fas fa-broom"></i> Buka Data Cleaning</button>
+</div>
+{% else %}
     <div class="dashboard-header mb-4">
-        <h2><i class="fas fa-lightbulb" style="color:#ffce20;"></i> <span data-translate="insights_title">Smart Insights</span></h2>
-        <p class="text-muted" data-translate="insights_subtitle">Automated data-driven conclusions from your dataset.</p>
+        <h2><i class="fas fa-lightbulb" style="color:#ffce20;"></i> <span data-i18n="insights_title">Smart Insights</span></h2>
+        <p class="text-muted" data-i18n="insights_subtitle">Automated data-driven conclusions from your dataset.</p>
     </div>
     <div class="insights-grid" id="insights-grid-container">
         <!-- Diisi oleh JS berdasarkan bahasa aktif -->
     </div>
+
+
+{% endif %}
+</div>
+
+<!-- ══════════════ TAB 9: AI INTERPRETATION ══════════════ -->
+<div id="tab-ai-interpretation" class="tab-content" style="display:none;">
+{% if data_status == 'raw' %}
+<div class="card" style="text-align:center;padding:60px 20px;border-radius:14px;">
+    <i class="fas fa-lock" style="font-size:2.5rem;color:var(--muted);margin-bottom:16px;display:block;"></i>
+    <h3 style="color:var(--text);margin-bottom:8px;" data-i18n="ov_features_unavailable">Fitur Tidak Tersedia</h3>
+    <p style="color:var(--muted);max-width:400px;margin:0 auto;" data-i18n="ov_cleaning_required_text">Data masih mentah (raw). Lakukan cleaning data terlebih dahulu untuk mengakses fitur ini.</p>
+    <button class="interpretation-btn interpretation-btn-primary mt-3" onclick="switchTab('cleaning')"><i class="fas fa-broom"></i> <span data-i18n="ov_cleaning_required">Buka Data Cleaning</span></button>
+</div>
+{% else %}
+<div class="dashboard-header mb-4">
+    <h2><i class="fas fa-robot" style="color:#7c3aed;"></i> <span data-i18n="ai_interpretation_title">AI Interpretation</span></h2>
+    <p class="text-muted" data-i18n="ai_interpretation_subtitle">Analisis mendalam berbasis AI untuk dataset Anda.</p>
+</div>
+
+<div class="interpretation-body">
+    <div id="interpretation-empty" class="card interpretation-state-card">
+        <i class="fas fa-cloud-upload-alt state-icon" style="color:var(--muted);"></i>
+        <h3 data-i18n="ai_empty_title">Interpretasi AI</h3>
+        <p data-i18n="ai_empty_desc">Klik generate untuk mendapatkan wawasan berbasis AI tentang dataset Anda. AI akan menganalisis statistik, korelasi, dan distribusi data secara mendalam.</p>
+        <button class="interpretation-btn interpretation-btn-primary" onclick="generateInterpretation()"><i class="fas fa-magic"></i> <span data-i18n="ai_generate_btn">Generate Interpretation</span></button>
+    </div>
+
+    <div id="interpretation-loading" class="card interpretation-state-card" style="display:none;">
+        <div class="interpretation-spinner"></div>
+        <h3 data-i18n="ai_loading_title">Menganalisis Dataset...</h3>
+        <p data-i18n="ai_typing">AI sedang memproses data Anda. Harap tunggu beberapa saat.</p>
+    </div>
+
+    <div id="interpretation-quota" class="card interpretation-state-card interpretation-quota-card" style="display:none;">
+        <i class="fas fa-hourglass-half state-icon"></i>
+        <h3 data-i18n="ai_quota_title">Batas Permintaan</h3>
+        <p id="interpretation-quota-message" class="text-muted"></p>
+        <p id="interpretation-quota-reset" class="quota-timer"></p>
+    </div>
+
+    <div id="interpretation-result" class="card interpretation-result-card" style="display:none;">
+        <div class="section-gap">
+            <div class="section-title"><i class="fas fa-align-left"></i> <span data-i18n="ai_summary_title">Ringkasan Eksekutif</span></div>
+            <div class="section-content"><p id="interpretation-summary-text"></p></div>
+        </div>
+        <div class="section-gap">
+            <div class="section-title"><i class="fas fa-search"></i> <span data-i18n="ai_findings_title">Temuan Utama</span></div>
+            <div class="section-content"><ul id="interpretation-findings-list"></ul></div>
+        </div>
+        <div class="section-gap">
+            <div class="section-title"><i class="fas fa-lightbulb"></i> <span data-i18n="ai_recommendations_title">Rekomendasi</span></div>
+            <div class="section-content"><ul id="interpretation-recommendations-list"></ul></div>
+        </div>
+        <div class="section-gap" style="margin-bottom:0;">
+            <div class="section-title"><i class="fas fa-flag-checkered"></i> <span data-i18n="ai_conclusion_title">Kesimpulan</span></div>
+            <div class="section-content"><p id="interpretation-conclusion-text"></p></div>
+        </div>
+        <div class="interpretation-result-footer">
+            <button class="interpretation-btn interpretation-btn-secondary" onclick="generateInterpretation()"><i class="fas fa-sync"></i> <span data-i18n="ai_regenerate_btn">Generate Ulang</span></button>
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+
+<!-- ══════════════ TAB 10: REPORTING SYSTEM ══════════════ -->
+<div id="tab-reporting" class="tab-content" style="display:none;">
+{% include "reporting_content.html" %}
 </div>
 
 <script id="insights-data-en" type="application/json">{{ insights_en | tojson | safe }}</script>
 <script id="insights-data-id" type="application/json">{{ insights_id | tojson | safe }}</script>
+<script id="ai-interpretation-data" type="application/json">{{ ai_interpretation_data | default('null') | safe }}</script>
 
 <script>
 (function() {
@@ -1988,8 +3321,7 @@ var DCleaning = (function () {
     window._insightsRender = renderInsights;
 
     document.addEventListener('DOMContentLoaded', function() {
-        var lang = localStorage.getItem('ds-lang') || 'en';
-        renderInsights(lang);
+        renderInsights('id');
     });
 })();
 </script>
@@ -1998,6 +3330,7 @@ var DCleaning = (function () {
 <!-- ══════════════ SCRIPTS ══════════════ -->
 <script src="{{ url_for('static', filename='js/dashboardOverview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/visualizationsMaster.js') }}"></script>
+<script src="{{ url_for('static', filename='js/aiSettings.js') }}"></script>
 
 <script>
 function showToast(msg, type) {
@@ -2035,14 +3368,22 @@ function triggerToastAfterReload(msg, type) {
 // Check for pending tab restoration and toast on load
 (function() {
     var pendingToast = localStorage.getItem('ds_pending_toast');
-    if (pendingToast) {
+    var shownFlag = sessionStorage.getItem('ds_toast_shown_for_reload');
+
+    // Latch per-reload: tampilkan maksimal 1x
+    if (!shownFlag && pendingToast) {
         try {
             var data = JSON.parse(pendingToast);
             showToast(data.msg, data.type);
-        } catch(e) {}
-        localStorage.removeItem('ds_pending_toast');
+        } catch (e) {
+            console.warn('[toast] parse ds_pending_toast error', e);
+        }
+        sessionStorage.setItem('ds_toast_shown_for_reload', '1');
     }
-    
+
+    // Selalu bersihkan payload setelah dibaca (agar tidak dobel setelah event lain)
+    if (pendingToast) localStorage.removeItem('ds_pending_toast');
+
     var activeTab = localStorage.getItem('ds_active_tab');
     if (activeTab) {
         setTimeout(function() {
@@ -2051,15 +3392,6 @@ function triggerToastAfterReload(msg, type) {
             }
         }, 50);
         localStorage.removeItem('ds_active_tab');
-    } else {
-        var dataStatus = {{ data_status | tojson }};
-        if (dataStatus === 'raw') {
-            setTimeout(function() {
-                if (typeof switchTab === 'function') {
-                    switchTab('cleaning');
-                }
-            }, 50);
-        }
     }
 })();
 
@@ -2075,6 +3407,7 @@ var vizMeta = {
 
 try { plotsData       = {{ plots    | tojson | safe }}; } catch(e) { console.error('plots data error:', e); }
 try { overviewPayload = {{ overview | tojson | safe }}; } catch(e) { console.error('overview data error:', e); }
+try { vizPreRendered  = {{ viz_prerendered | tojson | safe }}; } catch(e) { console.error('viz prerender error:', e); }
 
 var datasetContext = "Filename: {{ filename }}, Rows: {{ metrics.total_rows }}, Cols: {{ metrics.total_columns }}, Numeric: {{ num_cols|join(', ') }}, Categorical: {{ cat_cols|join(', ') }}{% if has_ts %}, DateTime: {{ dt_cols|join(', ') }}{% endif %}";
 
@@ -2089,11 +3422,11 @@ var PLOTLY_CFG = {
 };
 
 function _layoutPatch() {
-    var dark = document.body.getAttribute('data-theme')==='dark';
+    var dark = document.body.classList.contains('dark-theme');
     return {
         paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
-        font:{color:dark?'#c8d8f0':'#2b3674',family:'Inter, sans-serif'},
-        hoverlabel:{bgcolor:'rgba(10,18,48,0.93)',bordercolor:'rgba(100,160,235,0.45)',font:{color:'#e8f4fc',size:13}},
+        font:{color:dark?'#CBD5E1':'#6B7280',family:'Inter, sans-serif'},
+        hoverlabel:{bgcolor:dark?'rgba(15,23,42,0.93)':'rgba(255,255,255,0.93)',bordercolor:dark?'rgba(100,160,235,0.45)':'rgba(0,0,0,0.1)',font:{color:dark?'#e8f4fc':'#1F2937',size:13}},
     };
 }
 
@@ -2107,10 +3440,10 @@ function drawTsChart(panelId, plotKey, force) {
     try { if (typeof Plotly!=='undefined') Plotly.purge(el); } catch(e) {}
     el.innerHTML='';
     var layout = Object.assign({},plotObj.layout||{},_layoutPatch(),{autosize:true,margin:{l:48,r:20,t:52,b:48}});
-    if (typeof Plotly==='undefined') { el.innerHTML='<div style="padding:20px;color:#7eacd0;">Plotly.js tidak dimuat.</div>'; return; }
+    if (typeof Plotly==='undefined') { el.innerHTML='<div style="padding:20px;color:#7eacd0;">' + I18N.t('error_plotly_not_loaded') + '</div>'; return; }
     Plotly.newPlot(el, plotObj.data||[], layout, PLOTLY_CFG)
         .then(function(){ _tsRendered[panelId]=true; })
-        .catch(function(err){ el.innerHTML='<div style="padding:20px;color:#ee5d50;"><i class="fas fa-exclamation-circle"></i> Rendering error</div>'; });
+        .catch(function(err){ el.innerHTML='<div style="padding:20px;color:#ee5d50;"><i class="fas fa-exclamation-circle"></i> ' + I18N.t('error_rendering') + '</div>'; });
 }
 
 function switchTsTab(tab) {
@@ -2121,6 +3454,72 @@ function switchTsTab(tab) {
     var plotKey=TS_CHART_MAP['ts-'+tab];
     if (plotKey) drawTsChart('ts-'+tab, plotKey, false);
 }
+
+/* ── Time Series column dropdown ── */
+var _tsColumnData = {};
+var _tsDefaultNumCol = {{ (ts_meta.num_col if ts_meta else '""') | tojson }};
+
+function switchTsColumn(numCol) {
+    var select = document.getElementById('ts-num-col-select');
+    if (!select) return;
+    select.disabled = true;
+    var dtColEl = document.querySelector('.ts-meta-item:first-child .ts-meta-value');
+    var dtCol = dtColEl ? dtColEl.textContent.trim() : '';
+    if (!dtCol && vizMeta.dt_cols && vizMeta.dt_cols.length > 0) dtCol = vizMeta.dt_cols[0];
+    if (!numCol || !dtCol) { select.disabled = false; return; }
+
+    // If switching back to the default column, clear _tsColumnData and use plotsData
+    if (numCol === _tsDefaultNumCol) {
+        _tsColumnData = {};
+        Object.keys(_tsRendered).forEach(function(k){ delete _tsRendered[k]; });
+        var visibleTab = document.querySelector('.ts-subtab-content[style*="block"]') || document.getElementById('ts-line');
+        if (visibleTab) { var tabId = visibleTab.id.replace('ts-', ''); switchTsTab(tabId); }
+        select.disabled = false;
+        return;
+    }
+
+    fetch('/api/ts-charts/{{ filename }}?dt_col=' + encodeURIComponent(dtCol) + '&num_col=' + encodeURIComponent(numCol) + '&theme=' + (document.body.classList.contains('dark-theme') ? 'dark' : 'light'))
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if (!data.ok) { select.disabled = false; return; }
+            _tsColumnData = data.plots || {};
+            Object.keys(_tsRendered).forEach(function(k){ delete _tsRendered[k]; });
+            if (data.meta) {
+                var freqEl = document.getElementById('ts-meta-freq');
+                if (freqEl) freqEl.textContent = data.meta.freq_label || '-';
+                var ptsEl = document.getElementById('ts-meta-points');
+                if (ptsEl) ptsEl.textContent = data.meta.n_points || '-';
+                var perEl = document.getElementById('ts-meta-period');
+                if (perEl) perEl.textContent = (data.meta.date_start || '') + ' ' + (data.meta.date_end ? '\u2192 ' + data.meta.date_end : '');
+            }
+            var visibleTab = document.querySelector('.ts-subtab-content[style*="block"]') || document.getElementById('ts-line');
+            if (visibleTab) { var tabId = visibleTab.id.replace('ts-', ''); switchTsTab(tabId); }
+            select.disabled = false;
+        })
+        .catch(function(){
+            showToast('Failed to load chart for ' + numCol, 'error');
+            select.disabled = false;
+        });
+}
+
+/* Override drawTsChart to use _tsColumnData when available */
+var _origDrawTsChart = drawTsChart;
+drawTsChart = function(panelId, plotKey, force) {
+    var src = Object.keys(_tsColumnData).length > 0 ? _tsColumnData : plotsData;
+    if (!src) return;
+    var plotObj = src[plotKey];
+    if (!plotObj) return;
+    var el = document.getElementById('plot-' + panelId);
+    if (!el) return;
+    if (!force && _tsRendered[panelId]) { if (typeof Plotly!=='undefined'&&el._fullLayout) Plotly.Plots.resize(el); return; }
+    try { if (typeof Plotly!=='undefined') Plotly.purge(el); } catch(e) {}
+    el.innerHTML = '';
+    var layout = Object.assign({}, plotObj.layout || {}, _layoutPatch(), {autosize: true, margin: {l: 48, r: 20, t: 52, b: 48}});
+    if (typeof Plotly === 'undefined') { el.innerHTML = '<div style="padding:20px;color:#7eacd0;">' + I18N.t('error_plotly_not_loaded') + '</div>'; return; }
+    Plotly.newPlot(el, plotObj.data || [], layout, PLOTLY_CFG)
+        .then(function(){ _tsRendered[panelId] = true; })
+        .catch(function(){ el.innerHTML = '<div style="padding:20px;color:#ee5d50;"><i class="fas fa-exclamation-circle"></i> ' + I18N.t('error_rendering') + '</div>'; });
+};
 
 /* ── Preview mode toggle (raw / clean) ── */
 function switchPreviewMode(mode) {
@@ -2178,9 +3577,74 @@ window.switchTab = function(tab) {
     }
     if (tab==='timeseries') { setTimeout(function(){ switchTsTab('line'); }, 80); }
     if (tab==='cleaning') { setTimeout(function(){ if(typeof DCleaning!=='undefined') DCleaning.init(); }, 80); }
+    if (tab==='ai-interpretation') { setTimeout(function(){ if(typeof autoGenerateInterpretation==='function') autoGenerateInterpretation(); }, 120); }
+    if (tab==='upload') {
+        var fileInput = document.getElementById('file-input');
+        if (fileInput) fileInput.value = '';
+        var display = document.getElementById('file-name-display');
+        if (display) display.classList.remove('visible');
+        var info = document.getElementById('file-preview-info');
+        if (info) info.classList.remove('visible');
+        var btn = document.getElementById('btn-submit');
+        if (btn) btn.disabled = true;
+        var progress = document.getElementById('upload-progress-wrap');
+        if (progress) progress.classList.remove('visible');
+    }
 };
 
+/* ── (Sub-tab switching removed — single-page layout) ── */
+
+/* ── Collapsible sections ── */
+function toggleOvCollapse(section) {
+    var header = document.getElementById('ov-collapse-' + section);
+    var body = document.getElementById('ov-collapse-body-' + section);
+    if (!header || !body) return;
+    var isOpen = body.classList.contains('open');
+    if (isOpen) {
+        body.classList.remove('open');
+        header.classList.remove('open');
+        // Force reflow on inner charts
+        body.querySelectorAll('[id^="ov_"]').forEach(function(el) {
+            if (el._fullLayout && typeof Plotly !== 'undefined') {
+                Plotly.Plots.resize(el);
+            }
+        });
+    } else {
+        body.classList.add('open');
+        header.classList.add('open');
+        // Resize charts after transition
+        setTimeout(function() {
+            body.querySelectorAll('[id^="ov_"]').forEach(function(el) {
+                if (el._fullLayout && typeof Plotly !== 'undefined') {
+                    Plotly.Plots.resize(el);
+                }
+            });
+        }, 380);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Handle URL params BEFORE rendering — prevents flash from redirects
+    var _p = new URLSearchParams(window.location.search);
+    var _tabParam = _p.get('tab');
+    if (typeof switchTab === 'function') {
+        if (_tabParam && _tabParam !== 'overview') {
+            switchTab(_tabParam);
+            var _vizParam = _p.get('viz');
+            if (_tabParam === 'visualizations' && _vizParam && typeof openVizCategory === 'function') {
+                setTimeout(function(){ openVizCategory(_vizParam); }, 100);
+            }
+            var _tsParam = _p.get('ts');
+            if (_tabParam === 'timeseries' && _tsParam && typeof switchTsTab === 'function') {
+                setTimeout(function(){ switchTsTab(_tsParam); }, 100);
+            }
+            if (_tabParam === 'cleaning') {
+                setTimeout(function(){ if (typeof DCleaning !== 'undefined') DCleaning.init(); }, 80);
+            }
+        } else {
+            switchTab('overview');
+        }
+    }
     if (typeof OverviewDashboard!=='undefined'&&overviewPayload) OverviewDashboard.init(overviewPayload);
     if (typeof VizMaster!=='undefined') VizMaster.init(vizMeta);
     if (typeof DCleaning!=='undefined') DCleaning.init();
@@ -2193,6 +3657,7 @@ var _rsz;
 window.addEventListener('resize', function(){
     clearTimeout(_rsz);
     _rsz=setTimeout(function(){
+        // Resize all overview charts (only in active sub-tab, but safe to resize all)
         document.querySelectorAll('[id^="ov_"]').forEach(function(el){ if(el._fullLayout&&typeof Plotly!=='undefined') Plotly.Plots.resize(el); });
         Object.keys(_tsRendered).forEach(function(panelId){ var el=document.getElementById('plot-'+panelId); if(el&&el._fullLayout&&typeof Plotly!=='undefined') Plotly.Plots.resize(el); });
         var vzEl=document.getElementById('viz-master-plot');
@@ -2200,6 +3665,48 @@ window.addEventListener('resize', function(){
         if(typeof OverviewDashboard!=='undefined') OverviewDashboard.onResize();
     }, 200);
 });
+
+/* ── Balance last-row orphans in the viz grid ── */
+function balanceVizGrid() {
+    var grid = document.querySelector('.ov-viz-compact');
+    if (!grid) return;
+    var items = grid.querySelectorAll(':scope > .ov-chart-slot');
+    if (items.length < 2) return;
+
+    // Reset overrides
+    items.forEach(function(el) { el.style.gridColumn = ''; });
+    grid.style.gridTemplateColumns = '';
+
+    var style = getComputedStyle(grid);
+    var cols = style.gridTemplateColumns.split(' ').length;
+    if (cols < 2) return;
+
+    var tops = Array.from(items).map(function(el) { return el.getBoundingClientRect().top; });
+    var lastTop = Math.max.apply(null, tops);
+    var lastItems = Array.from(items).filter(function(_, i) { return tops[i] === lastTop; });
+    var n = lastItems.length;
+
+    if (n >= cols) return;
+
+    if (n === 1) {
+        // Satu item sendirian di baris terakhir → rentang penuh
+        lastItems[0].style.gridColumn = '1 / -1';
+        return;
+    }
+
+    // Dua item di baris terakhir dengan sisa kolom ganjil (mis: 5 item, 3 kolom)
+    // Ubah grid ke LCM (3×2=6 kolom) agar last-row items bisa 50-50
+    var lcm = cols * n;
+    grid.style.gridTemplateColumns = 'repeat(' + lcm + ', 1fr)';
+    var spanBefore = lcm / cols;
+    var spanAfter  = lcm / n;
+    items.forEach(function(el, i) {
+        el.style.gridColumn = 'auto / span ' + (i < items.length - n ? spanBefore : spanAfter);
+    });
+}
+var _balGrid;
+document.addEventListener('DOMContentLoaded', function(){ clearTimeout(_balGrid); _balGrid = setTimeout(balanceVizGrid, 100); });
+window.addEventListener('resize', function(){ clearTimeout(_balGrid); _balGrid = setTimeout(balanceVizGrid, 150); });
 
 function appendChatMsg(text, role, typing) {
     typing=typing||false;
@@ -2215,6 +3722,140 @@ function appendChatMsg(text, role, typing) {
 
 var _aiInput=document.getElementById('ai-input');
 if (_aiInput) _aiInput.addEventListener('keypress', function(e){ if(e.key==='Enter') sendAIMessage(); });
+
+/* ── Upload tab: drag-drop & file select ── */
+function handleDragOver(e) {
+    e.preventDefault();
+    var dz = document.getElementById('dropzone');
+    if (dz) dz.classList.add('dragover');
+}
+function handleDragLeave(e) {
+    var dz = document.getElementById('dropzone');
+    if (dz) dz.classList.remove('dragover');
+}
+function handleDrop(e) {
+    e.preventDefault();
+    var dz = document.getElementById('dropzone');
+    if (dz) dz.classList.remove('dragover');
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+        var input = document.getElementById('file-input');
+        var dt = new DataTransfer();
+        dt.items.add(files[0]);
+        input.files = dt.files;
+        updateFileUI(files[0]);
+    }
+}
+function handleFileSelect(input) {
+    if (input.files && input.files[0]) updateFileUI(input.files[0]);
+}
+function updateFileUI(file) {
+    var allowed = ['csv', 'xlsx', 'txt'];
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Format Not Supported', text: 'Please upload a .csv, .xlsx, or .txt file.', confirmButtonColor: '#4318ff' });
+        }
+        return;
+    }
+    var display = document.getElementById('file-name-display');
+    document.getElementById('file-name-text').textContent = file.name;
+    display.classList.add('visible');
+    var sizeKB = (file.size / 1024).toFixed(1);
+    var sizeFmt = file.size > 1024 * 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : sizeKB + ' KB';
+    document.getElementById('fi-name').textContent = file.name;
+    document.getElementById('fi-size').textContent = sizeFmt;
+    document.getElementById('fi-type').textContent = ext.toUpperCase();
+    document.getElementById('file-preview-info').classList.add('visible');
+    document.getElementById('btn-submit').disabled = false;
+}
+/* ── Upload tab: progress bar & submit ── */
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('upload-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var btn = document.getElementById('btn-submit');
+            var wrap = document.getElementById('upload-progress-wrap');
+            var bar = document.getElementById('upload-progress-bar');
+            if (btn) btn.disabled = true;
+            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>' + I18N.t('upload_analyzing') + '</span>';
+            if (wrap) wrap.classList.add('visible');
+            var pct = 0;
+            var iv = setInterval(function() {
+                pct = Math.min(pct + Math.random() * 18, 90);
+                if (bar) bar.style.width = pct + '%';
+                if (pct >= 90) clearInterval(iv);
+            }, 220);
+        });
+    }
+});
+/* ── Upload tab: history filter ── */
+function filterHistory(query) {
+    var q = query.toLowerCase().trim();
+    document.querySelectorAll('#history-grid .history-card').forEach(function(card) {
+        var name = card.dataset.filename.toLowerCase();
+        card.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+}
+function exportPDF() {
+    if (typeof switchTab === 'function') switchTab('reporting');
+}
+
+/* ── Single upload success toast ── */
+{% if upload_success %}
+(function(){
+    setTimeout(function(){
+        if (typeof showToast === 'function') {
+            showToast(I18N.t('upload_success_toast'), 'success');
+        }
+    }, 500);
+})();
+{% endif %}
+</script>
+
+<!-- Insight Detail Modal -->
+<div id="ov-insight-modal-overlay" class="ov-insight-modal-overlay" onclick="closeInsightModal(event)">
+    <div class="ov-insight-modal" onclick="event.stopPropagation()">
+        <button class="ov-insight-modal-close" onclick="closeInsightModal()"><i class="fas fa-times"></i></button>
+        <div id="ov-insight-modal-icon" class="ov-insight-modal-icon"></div>
+        <div id="ov-insight-modal-title" class="ov-insight-modal-title"></div>
+        <div id="ov-insight-modal-desc" class="ov-insight-modal-desc"></div>
+    </div>
+</div>
+
+<script>
+// ── Insight pill click (delegated) ──
+document.addEventListener('click', function(e) {
+    var pill = e.target.closest('.ov-kf-pill');
+    if (!pill) return;
+    var idx = pill.getAttribute('data-insight-idx');
+    if (idx === null) return;
+    var dataEl = document.getElementById('ov-insight-data');
+    if (!dataEl) return;
+    var insights;
+    try { insights = JSON.parse(dataEl.textContent); } catch(_) { return; }
+    var ins = insights[parseInt(idx)];
+    if (!ins) return;
+    var overlay = document.getElementById('ov-insight-modal-overlay');
+    var iconEl = document.getElementById('ov-insight-modal-icon');
+    var titleEl = document.getElementById('ov-insight-modal-title');
+    var descEl = document.getElementById('ov-insight-modal-desc');
+    if (iconEl) iconEl.innerHTML = '<i class="fas ' + ins.icon + '" style="font-size:1.6rem;"></i>';
+    if (titleEl) titleEl.textContent = ins.title.trim();
+    if (descEl) descEl.innerHTML = ins.desc;
+    if (overlay) overlay.style.display = 'flex';
+});
+function closeInsightModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    var overlay = document.getElementById('ov-insight-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var overlay = document.getElementById('ov-insight-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+});
 </script>
 
 {% endblock %}

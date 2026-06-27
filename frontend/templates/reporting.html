@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "reporting_content.html" %}
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+var RPT_FILENAME = {{ filename | tojson }};
+window.switchTab = function(tab) {
+  var dash = '/dashboard/' + RPT_FILENAME;
+  if (tab === 'upload') { window.location.href = '/upload'; return; }
+  var map = {
+    overview: dash, preview: dash, cleaning: dash + '?tab=cleaning',
+    numerical: dash + '?tab=numerical', categorical: dash + '?tab=categorical',
+    advanced: dash + '?tab=advanced', insights: dash + '?tab=insights',
+    timeseries: dash + '?tab=timeseries',
+  };
+  window.location.href = map[tab] || dash;
+};
+</script>
+{% endblock %}

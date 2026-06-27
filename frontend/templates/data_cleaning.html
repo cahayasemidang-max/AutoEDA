@@ -1,7 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 
+<div id="cleaning-spinner-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(4,11,24,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="text-align:center;">
+        <div class="cleaning-spinner"></div>
+        <p style="color:#cde4f8;font-weight:600;margin-top:16px;font-size:0.95rem;" id="cleaning-spinner-text" data-i18n="cleaning_processing">Memproses data...</p>
+    </div>
+</div>
+
 <style>
+/* ── Cleaning Spinner ── */
+.cleaning-spinner { width:48px;height:48px;margin:0 auto;border:4px solid rgba(133,183,235,0.15);border-top-color:#378ADD;border-radius:50%;animation:cs-spin .8s linear infinite; }
+@keyframes cs-spin { to { transform:rotate(360deg); } }
+
 /* ═══════════════════════════════════════════════════════════════
    DATA CLEANING TAB — Full Redesign
    ═══════════════════════════════════════════════════════════════ */
@@ -167,6 +178,58 @@
 }
 .dc-field select:focus,
 .dc-field input:focus { border-color: var(--blue); }
+
+/* ── Show All toggle switch ── */
+.dc-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+.dc-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.dc-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.dc-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    transition: .3s;
+}
+.dc-toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: .3s;
+}
+.dc-toggle-switch input:checked + .dc-toggle-slider {
+    background: var(--blue, #378ADD);
+}
+.dc-toggle-switch input:checked + .dc-toggle-slider::before {
+    transform: translateX(16px);
+}
+.dc-toggle-label {
+    user-select: none;
+    cursor: pointer;
+}
 
 /* Multi-select col checkbox list */
 .dc-col-checklist {
@@ -396,6 +459,14 @@
 .dc-undo-last-btn:hover { background: var(--red); color: #fff; }
 .dc-undo-last-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+/* ── DC Quick Fix ── */
+.dc-quickfix-card { margin:0 12px 16px; padding:16px 20px; border-radius:12px; background:linear-gradient(135deg,#059669,#047857); color:#fff; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.dc-quickfix-card h4 { font-size:.95rem; font-weight:800; display:flex; align-items:center; gap:8px; margin:0; color:#fff; }
+.dc-quickfix-card p { font-size:.78rem; opacity:.9; margin:4px 0 0; }
+.dc-btn-quickfix { padding:10px 28px; border-radius:10px; border:2px solid rgba(255,255,255,.7); background:rgba(255,255,255,.15); color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; font-family:inherit; backdrop-filter:blur(4px); transition:.2s; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+.dc-btn-quickfix:hover { background:#fff; color:#047857; border-color:#fff; transform:scale(1.03); }
+.dc-btn-quickfix:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
 /* ── Preview modal ── */
 .dc-preview-modal {
     display: none;
@@ -572,16 +643,16 @@
 
 
 <!-- ══════════════ NOTIFICATION BANNERS ══════════════ -->
-<div id="dc-banner-warning" class="dc-banner warning">
+<div id="dc-banner-warning" class="dc-banner warning" style="display:none;">
     <i class="fas fa-exclamation-triangle"></i>
-    <span id="dc-banner-warning-text">Data perlu di cleaning!</span>
+    <span id="dc-banner-warning-text" data-i18n="banner_warning">Data perlu di cleaning!</span>
     <button class="dc-banner-close" onclick="document.getElementById('dc-banner-warning').style.display='none'">
         <i class="fas fa-times"></i>
     </button>
 </div>
-<div id="dc-banner-success" class="dc-banner success">
+<div id="dc-banner-success" class="dc-banner success" style="display:none;">
     <i class="fas fa-check-circle"></i>
-    <span id="dc-banner-success-text">Berhasil melakukan cleaning! Data siap digunakan.</span>
+    <span id="dc-banner-success-text" data-i18n="banner_success">Berhasil melakukan cleaning! Data siap digunakan.</span>
     <button class="dc-banner-close" onclick="document.getElementById('dc-banner-success').style.display='none'">
         <i class="fas fa-times"></i>
     </button>
@@ -594,10 +665,10 @@
         <div>
             <h2 style="display:flex;align-items:center;gap:10px;">
                 <i class="fas fa-broom text-green"></i>
-                Data Cleaning
+                <span data-i18n="nav_cleaning">Data Cleaning</span>
                 <span id="dc-status-badge"></span>
             </h2>
-            <p class="text-muted" style="margin-top:4px;" data-translate="cleaning_desc">
+            <p class="text-muted" style="margin-top:4px;" data-i18n="cleaning_desc">
                 Pilih operasi, preview dampak, lalu apply. Semua langkah tersimpan di history.
             </p>
         </div>
@@ -608,35 +679,35 @@
 <!-- ══════════════ SUMMARY CARDS ══════════════ -->
 <div class="dc-summary-grid" id="dc-summary-grid">
     <div class="dc-stat-card" id="dcs-rows">
-        <span class="dc-stat-label"><i class="fas fa-list-ol"></i> Rows</span>
+        <span class="dc-stat-label"><i class="fas fa-list-ol"></i> <span data-i18n="cleaning_stat_rows">Rows</span></span>
         <span class="dc-stat-value" id="dcs-rows-val">{{ quality_full.summary.total_rows }}</span>
     </div>
     <div class="dc-stat-card" id="dcs-cols">
-        <span class="dc-stat-label"><i class="fas fa-columns"></i> Columns</span>
+        <span class="dc-stat-label"><i class="fas fa-columns"></i> <span data-i18n="cleaning_stat_columns">Columns</span></span>
         <span class="dc-stat-value" id="dcs-cols-val">{{ quality_full.summary.total_cols }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.duplicate_rows > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-dupes">
-        <span class="dc-stat-label"><i class="fas fa-copy"></i> Duplicates</span>
+        <span class="dc-stat-label"><i class="fas fa-copy"></i> <span data-i18n="cleaning_stat_duplicates">Duplicates</span></span>
         <span class="dc-stat-value" id="dcs-dupes-val">{{ quality_full.summary.duplicate_rows }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.missing_cells > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-missing">
-        <span class="dc-stat-label"><i class="fas fa-question-circle"></i> Missing</span>
+        <span class="dc-stat-label"><i class="fas fa-question-circle"></i> <span data-i18n="cleaning_stat_missing">Missing</span></span>
         <span class="dc-stat-value" id="dcs-missing-val">{{ quality_full.summary.missing_cells }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.total_outliers > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-outliers">
-        <span class="dc-stat-label"><i class="fas fa-exclamation"></i> Outliers</span>
+        <span class="dc-stat-label"><i class="fas fa-exclamation"></i> <span data-i18n="cleaning_stat_outliers">Outliers</span></span>
         <span class="dc-stat-value" id="dcs-outliers-val">{{ quality_full.summary.total_outliers }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.inconsistency_count > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-incons">
-        <span class="dc-stat-label"><i class="fas fa-random"></i> Inconsistencies</span>
+        <span class="dc-stat-label"><i class="fas fa-random"></i> <span data-i18n="cleaning_stat_inconsistencies">Inconsistencies</span></span>
         <span class="dc-stat-value" id="dcs-incons-val">{{ quality_full.summary.inconsistency_count }}</span>
     </div>
     <div class="dc-stat-card {% if quality_full.summary.irrelevant_count > 0 %}has-issue{% else %}all-good{% endif %}" id="dcs-irrel">
-        <span class="dc-stat-label"><i class="fas fa-filter"></i> Irrelevant Cols</span>
+        <span class="dc-stat-label"><i class="fas fa-filter"></i> <span data-i18n="cleaning_stat_irrelevant">Irrelevant Cols</span></span>
         <span class="dc-stat-value" id="dcs-irrel-val">{{ quality_full.summary.irrelevant_count }}</span>
     </div>
     <div class="dc-stat-card" id="dcs-dtypes">
-        <span class="dc-stat-label"><i class="fas fa-code"></i> Data Types</span>
+        <span class="dc-stat-label"><i class="fas fa-code"></i> <span data-i18n="cleaning_stat_data_types">Data Types</span></span>
         <span class="dc-stat-value" id="dcs-dtypes-val" style="font-size:.8rem;font-weight:600;">
             {% for k,v in quality_full.summary.dtypes.items() %}{{ k }}:{{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
         </span>
@@ -644,109 +715,127 @@
 </div>
 
 
+<!-- Quick Fix card -->
+<div class="dc-quickfix-card">
+    <div>
+        <h4><i class="fas fa-bolt"></i> <span data-i18n="cleaning_quick_action_heading">Aksi Cepat</span></h4>
+        <p data-i18n="cleaning_quick_action_desc">Perbaiki semua masalah data dalam satu klik — isi missing, hapus duplikat, bersihkan teks, cap outlier, drop kolom irelevan, dan konversi tipe data.</p>
+    </div>
+    <button class="dc-btn-quickfix" id="dc-btn-quickfix" onclick="DCleaning.quickFix()">
+        <i class="fas fa-rocket"></i> <span data-i18n="cleaning_quick_action_run">Jalankan Aksi Cepat</span>
+    </button>
+</div>
+
 <!-- ══════════════ MAIN 3-COL LAYOUT ══════════════ -->
 <div class="dc-layout">
 
     <!-- ── KIRI: Operation Panel ── -->
     <div class="card dc-ops-card">
         <div style="padding:14px 18px 12px; border-bottom:1px solid var(--border);">
-            <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;" data-translate="cleaning_ops">
-                <i class="fas fa-sliders-h text-blue"></i> Operasi Cleaning
+            <h4 style="font-size:.93rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;">
+                <i class="fas fa-sliders-h text-blue"></i> <span data-i18n="cleaning_ops">Operasi Cleaning</span>
             </h4>
-            <p style="font-size:.72rem;color:var(--muted);margin-top:4px;" data-translate="cleaning_subdesc">Pilih operasi → Preview → Apply</p>
+            <p style="font-size:.72rem;color:var(--muted);margin-top:4px;" data-i18n="cleaning_subdesc">Pilih operasi → Preview → Apply</p>
+        </div>
+        <div class="dc-toggle-row">
+            <label class="dc-toggle-switch">
+                <input type="checkbox" id="dc-show-all-cleaning">
+                <span class="dc-toggle-slider"></span>
+            </label>
+            <label class="dc-toggle-label" for="dc-show-all-cleaning" data-i18n="cleaning_show_all">Show All Options</label>
         </div>
 
         <!-- ▸ Handle Missing Value -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-question-circle text-red"></i> Handle Missing Value</div>
+        <div class="dc-ops-section" data-issue-card="dcs-missing">
+            <div class="dc-section-title"><i class="fas fa-question-circle text-red"></i> <span data-i18n="cleaning_handle_missing">Handle Missing Value</span></div>
 
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-missing')">
-                <span><i class="fas fa-fill-drip" style="margin-right:7px;"></i>Isi Missing Value</span>
+                <span><i class="fas fa-fill-drip" style="margin-right:7px;"></i><span data-i18n="cleaning_fill_missing">Isi Missing Value</span></span>
                 <i class="fas fa-chevron-down" id="icon-panel-missing"></i>
             </button>
             <div class="dc-sub-panel" id="panel-missing">
                 <div class="dc-field">
-                    <label>Metode Pengisian</label>
+                    <label data-i18n="cleaning_fill_method_label">Metode Pengisian</label>
                     <select id="missing-method">
-                        <option value="mean">Fill with Mean (numerik)</option>
-                        <option value="median">Fill with Median (numerik)</option>
-                        <option value="mode">Fill with Mode (semua tipe)</option>
-                        <option value="fill_value">Fill with Custom Value</option>
-                        <option value="drop_rows">Drop Rows with Missing</option>
+                        <option value="mean" data-i18n="cleaning_fill_method_mean">Fill with Mean (numerik)</option>
+                        <option value="median" data-i18n="cleaning_fill_method_median">Fill with Median (numerik)</option>
+                        <option value="mode" data-i18n="cleaning_fill_method_mode">Fill with Mode (semua tipe)</option>
+                        <option value="fill_value" data-i18n="cleaning_fill_method_custom">Fill with Custom Value</option>
+                        <option value="drop_rows" data-i18n="cleaning_fill_method_drop">Drop Rows with Missing</option>
                     </select>
                 </div>
                 <div class="dc-field" id="missing-fillval-wrap" style="display:none;">
-                    <label>Custom Value</label>
-                    <input type="text" id="missing-fillval" placeholder="e.g. 0 atau N/A">
+                    <label data-i18n="cleaning_custom_value_label">Custom Value</label>
+                    <input type="text" id="missing-fillval" data-i18n-placeholder="cleaning_fillval_placeholder" placeholder="e.g. 0 atau N/A">
                 </div>
                 <div class="dc-field">
-                    <label>Terapkan ke Kolom</label>
+                    <label data-i18n="cleaning_apply_to_label">Terapkan ke Kolom</label>
                     <select id="missing-scope">
-                        <option value="all">Semua Kolom</option>
-                        <option value="numeric">Kolom Numerik Saja</option>
-                        <option value="categorical">Kolom Teks/Kategorik Saja</option>
-                        <option value="select">Pilih Kolom Tertentu</option>
+                        <option value="all" data-i18n="cleaning_scope_all">Semua Kolom</option>
+                        <option value="numeric" data-i18n="cleaning_numeric_only">Kolom Numerik Saja</option>
+                        <option value="categorical" data-i18n="cleaning_scope_categorical_only">Kolom Teks/Kategorik Saja</option>
+                        <option value="select" data-i18n="cleaning_scope_select">Pilih Kolom Tertentu</option>
                     </select>
                 </div>
                 <div class="dc-field" id="missing-cols-wrap" style="display:none;">
-                    <label>Pilih Kolom</label>
+                    <label data-i18n="cleaning_select_columns_label">Pilih Kolom</label>
                     <div class="dc-col-checklist" id="missing-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
                     <button class="dc-btn-preview" onclick="DCleaning.preview('handle_missing')">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
                     </button>
                     <button class="dc-btn-apply" onclick="DCleaning.apply('handle_missing')">
-                        <i class="fas fa-check"></i> Apply
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- ▸ Remove Outliers -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-exclamation-triangle text-orange"></i> Remove Outliers</div>
+        <div class="dc-ops-section" data-issue-card="dcs-outliers">
+            <div class="dc-section-title"><i class="fas fa-exclamation-triangle text-orange"></i> <span data-i18n="cleaning_remove_outliers">Remove Outliers</span></div>
 
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-outliers')">
-                <span><i class="fas fa-filter" style="margin-right:7px;"></i>Handle Outliers</span>
+                <span><i class="fas fa-filter" style="margin-right:7px;"></i><span data-i18n="cleaning_remove_outliers">Handle Outliers</span></span>
                 <i class="fas fa-chevron-down" id="icon-panel-outliers"></i>
             </button>
             <div class="dc-sub-panel" id="panel-outliers">
                 <div class="dc-field">
-                    <label>Metode Deteksi</label>
+                    <label data-i18n="cleaning_detection_method_label">Metode Deteksi</label>
                     <select id="outlier-method">
-                        <option value="iqr">IQR (Interquartile Range)</option>
-                        <option value="zscore">Z-Score</option>
+                        <option value="iqr" data-i18n="cleaning_outlier_method_iqr">IQR (Interquartile Range)</option>
+                        <option value="zscore" data-i18n="cleaning_outlier_method_zscore">Z-Score</option>
                     </select>
                 </div>
                 <div class="dc-field" id="outlier-zthresh-wrap" style="display:none;">
-                    <label>Z-Score Threshold (default 3.0)</label>
+                    <label data-i18n="cleaning_zscore_threshold_label">Z-Score Threshold (default 3.0)</label>
                     <input type="number" id="outlier-zthresh" value="3.0" step="0.1" min="1" max="5">
                 </div>
                 <div class="dc-field">
-                    <label>Aksi</label>
+                    <label data-i18n="cleaning_action_label">Aksi</label>
                     <select id="outlier-action">
-                        <option value="remove">Remove (hapus baris)</option>
-                        <option value="cap">Cap (winsorize ke batas)</option>
+                        <option value="remove" data-i18n="cleaning_option_remove">Remove (hapus baris)</option>
+                        <option value="cap" data-i18n="cleaning_outlier_action_cap">Cap (winsorize ke batas)</option>
                     </select>
                 </div>
                 <div class="dc-field">
                     <label>Terapkan ke Kolom</label>
                     <select id="outlier-scope">
-                        <option value="all">Semua Kolom Numerik</option>
+                        <option value="all" data-i18n="cleaning_option_all_numeric">Semua Kolom Numerik</option>
                         <option value="select">Pilih Kolom Tertentu</option>
                     </select>
                 </div>
                 <div class="dc-field" id="outlier-cols-wrap" style="display:none;">
-                    <label>Pilih Kolom Numerik</label>
+                    <label data-i18n="cleaning_select_numeric">Pilih Kolom Numerik</label>
                     <div class="dc-col-checklist" id="outlier-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
                     <button class="dc-btn-preview" onclick="DCleaning.preview('remove_outliers')">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
                     </button>
                     <button class="dc-btn-apply" onclick="DCleaning.apply('remove_outliers')">
-                        <i class="fas fa-check"></i> Apply
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
                     </button>
                 </div>
             </div>
@@ -754,78 +843,216 @@
 
         <!-- ▸ Normalize Data -->
         <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-compress-arrows-alt text-purple"></i> Normalize Data</div>
+            <div class="dc-section-title"><i class="fas fa-compress-arrows-alt text-purple"></i> <span data-i18n="cleaning_normalize">Normalize Data</span></div>
 
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-normalize')">
-                <span><i class="fas fa-balance-scale" style="margin-right:7px;"></i>Normalisasi Data</span>
+                <span><i class="fas fa-balance-scale" style="margin-right:7px;"></i><span data-i18n="cleaning_normalize">Normalisasi Data</span></span>
                 <i class="fas fa-chevron-down" id="icon-panel-normalize"></i>
             </button>
             <div class="dc-sub-panel" id="panel-normalize">
                 <div class="dc-field">
-                    <label>Metode Normalisasi</label>
+                    <label data-i18n="cleaning_norm_method_label">Metode Normalisasi</label>
                     <select id="norm-method">
-                        <option value="minmax">Min-Max Scaling (→ [0,1])</option>
-                        <option value="standard">Standard Scaling (Z-score, μ=0 σ=1)</option>
+                        <option value="minmax" data-i18n="cleaning_norm_method_minmax">Min-Max Scaling (→ [0,1])</option>
+                        <option value="standard" data-i18n="cleaning_norm_method_standard">Standard Scaling (Z-score, μ=0 σ=1)</option>
                     </select>
                 </div>
                 <div class="dc-field">
                     <label>Terapkan ke Kolom</label>
                     <select id="norm-scope">
-                        <option value="all">Semua Kolom Numerik</option>
+                        <option value="all" data-i18n="cleaning_option_all_numeric">Semua Kolom Numerik</option>
                         <option value="select">Pilih Kolom Tertentu</option>
                     </select>
                 </div>
                 <div class="dc-field" id="norm-cols-wrap" style="display:none;">
-                    <label>Pilih Kolom Numerik</label>
+                    <label data-i18n="cleaning_select_numeric">Pilih Kolom Numerik</label>
                     <div class="dc-col-checklist" id="norm-cols-list"></div>
                 </div>
                 <div class="dc-action-row">
                     <button class="dc-btn-preview" onclick="DCleaning.preview('normalize')">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
                     </button>
                     <button class="dc-btn-apply" onclick="DCleaning.apply('normalize')">
-                        <i class="fas fa-check"></i> Apply
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ▸ Fix Inconsistencies -->
+        <div class="dc-ops-section" data-issue-card="dcs-incons">
+            <div class="dc-section-title"><i class="fas fa-font text-purple"></i> <span data-i18n="cleaning_fix_inconsistencies">Fix Inconsistencies</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-fixinc')">
+                <span><i class="fas fa-text-height" style="margin-right:7px;"></i><span data-i18n="cleaning_fix_inconsistencies">Perbaiki Inkonsistensi</span></span>
+                <i class="fas fa-chevron-down" id="icon-panel-fixinc"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-fixinc">
+                <div class="dc-field">
+                    <label data-i18n="cleaning_fixinc_method_label">Metode</label>
+                    <select id="fixinc-method">
+                        <option value="title" data-i18n="cleaning_fixinc_title">Title Case</option>
+                        <option value="lower" data-i18n="cleaning_fixinc_lower">Lowercase</option>
+                        <option value="upper" data-i18n="cleaning_fixinc_upper">Uppercase</option>
+                        <option value="strip" data-i18n="cleaning_fixinc_strip">Strip Whitespace</option>
+                    </select>
+                </div>
+                <div class="dc-field">
+                    <label>Terapkan ke Kolom</label>
+                    <select id="fixinc-scope">
+                        <option value="all" data-i18n="cleaning_fixinc_scope_all_text">Semua Kolom Teks</option>
+                        <option value="select">Pilih Kolom Tertentu</option>
+                    </select>
+                </div>
+                <div class="dc-field" id="fixinc-cols-wrap" style="display:none;">
+                    <label>Pilih Kolom</label>
+                    <div class="dc-col-checklist" id="fixinc-cols-list"></div>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('fix_inconsistencies')">
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
+                    </button>
+                    <button class="dc-btn-apply" onclick="DCleaning.apply('fix_inconsistencies')">
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ▸ Convert Dtypes -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-exchange-alt text-blue"></i> <span data-i18n="cleaning_convert_dtypes">Convert Dtypes</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-convdt')">
+                <span><i class="fas fa-arrow-right" style="margin-right:7px;"></i><span data-i18n="cleaning_convert_dtypes">Konversi Tipe Data</span></span>
+                <i class="fas fa-chevron-down" id="icon-panel-convdt"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-convdt">
+                <div class="dc-field">
+                    <label data-i18n="cleaning_convdt_target_label">Target Konversi</label>
+                    <select id="convdt-target">
+                        <option value="all" data-i18n="cleaning_convdt_all">Semua (datetime + numeric)</option>
+                        <option value="datetime" data-i18n="cleaning_convdt_datetime">Datetime saja</option>
+                        <option value="numeric" data-i18n="cleaning_convdt_numeric">Numeric saja</option>
+                    </select>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('convert_dtypes')">
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
+                    </button>
+                    <button class="dc-btn-apply" onclick="DCleaning.apply('convert_dtypes')">
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ▸ Standardize Numeric -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-dollar-sign text-green"></i> <span data-i18n="cleaning_standardize_numeric">Standardize Numeric</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-stdnum')">
+                <span><i class="fas fa-coins" style="margin-right:7px;"></i><span data-i18n="cleaning_standardize_numeric">Standardisasi Numerik</span></span>
+                <i class="fas fa-chevron-down" id="icon-panel-stdnum"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-stdnum">
+                <div class="dc-field">
+                    <label>Terapkan ke Kolom</label>
+                    <select id="stdnum-scope">
+                        <option value="all" data-i18n="cleaning_option_auto_detect">Auto-Detect (kolom dengan format kotor)</option>
+                        <option value="select">Pilih Kolom Tertentu</option>
+                    </select>
+                </div>
+                <div class="dc-field" id="stdnum-cols-wrap" style="display:none;">
+                    <label>Pilih Kolom</label>
+                    <div class="dc-col-checklist" id="stdnum-cols-list"></div>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('standardize_numeric')">
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
+                    </button>
+                    <button class="dc-btn-apply" onclick="DCleaning.apply('standardize_numeric')">
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ▸ Standardize Categorical -->
+        <div class="dc-ops-section">
+            <div class="dc-section-title"><i class="fas fa-tags text-yellow"></i> <span data-i18n="cleaning_standardize_categorical">Standardize Categorical</span></div>
+            <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-stdcat')">
+                <span><i class="fas fa-check-double" style="margin-right:7px;"></i><span data-i18n="cleaning_standardize_categorical">Standardisasi Kategorikal</span></span>
+                <i class="fas fa-chevron-down" id="icon-panel-stdcat"></i>
+            </button>
+            <div class="dc-sub-panel" id="panel-stdcat">
+                <div class="dc-field">
+                    <label><input type="checkbox" id="stdcat-bool" checked> <span data-i18n="cleaning_stdcat_bool_label">Normalisasi boolean (Y/yes/Ya → Yes, T/tidak/No → No)</span></label>
+                </div>
+                <div class="dc-field">
+                    <label data-i18n="cleaning_stdcat_case_label">Case Normalization</label>
+                    <select id="stdcat-case">
+                        <option value="" data-i18n="cleaning_stdcat_case_none">Biarkan apa adanya</option>
+                        <option value="title" data-i18n="cleaning_fixinc_title">Title Case</option>
+                        <option value="lower" data-i18n="cleaning_fixinc_lower">Lowercase</option>
+                        <option value="upper" data-i18n="cleaning_fixinc_upper">Uppercase</option>
+                    </select>
+                </div>
+                <div class="dc-field">
+                    <label>Terapkan ke Kolom</label>
+                    <select id="stdcat-scope">
+                        <option value="all">Semua Kolom Teks</option>
+                        <option value="select">Pilih Kolom Tertentu</option>
+                    </select>
+                </div>
+                <div class="dc-field" id="stdcat-cols-wrap" style="display:none;">
+                    <label>Pilih Kolom</label>
+                    <div class="dc-col-checklist" id="stdcat-cols-list"></div>
+                </div>
+                <div class="dc-action-row">
+                    <button class="dc-btn-preview" onclick="DCleaning.preview('standardize_categorical')">
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
+                    </button>
+                    <button class="dc-btn-apply" onclick="DCleaning.apply('standardize_categorical')">
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- ▸ Quick Actions -->
-        <div class="dc-ops-section">
-            <div class="dc-section-title"><i class="fas fa-bolt text-orange"></i> Quick Actions</div>
+        <div class="dc-ops-section" data-issue-card="dcs-dupes">
+            <div class="dc-section-title"><i class="fas fa-bolt text-orange"></i> <span data-i18n="cleaning_quick_actions_title">Quick Actions</span></div>
             <button class="dc-op-btn" onclick="DCleaning.applyQuick('drop_duplicates')">
-                <span><i class="fas fa-clone" style="margin-right:7px;"></i>Hapus Duplikat</span>
+                <span><i class="fas fa-clone" style="margin-right:7px;"></i><span data-i18n="cleaning_remove_duplicates">Hapus Duplikat</span></span>
                 <i class="fas fa-play"></i>
             </button>
             <button class="dc-op-btn" onclick="DCleaning.applyQuick('strip_whitespace')">
-                <span><i class="fas fa-text-width" style="margin-right:7px;"></i>Strip Whitespace</span>
+                <span><i class="fas fa-text-width" style="margin-right:7px;"></i><span data-i18n="cleaning_strip_whitespace">Strip Whitespace</span></span>
                 <i class="fas fa-play"></i>
             </button>
             <button class="dc-op-btn" onclick="DCleaning.applyQuick('empty_to_nan')">
-                <span><i class="fas fa-eraser" style="margin-right:7px;"></i>Empty String → NaN</span>
+                <span><i class="fas fa-eraser" style="margin-right:7px;"></i><span data-i18n="cleaning_empty_to_nan">Empty String → NaN</span></span>
                 <i class="fas fa-play"></i>
             </button>
 
             <!-- Drop High Missing Threshold -->
             <button class="dc-op-btn" onclick="DCleaning.togglePanel('panel-dropmiss')">
-                <span><i class="fas fa-trash-alt" style="margin-right:7px;"></i>Drop High-Missing Cols</span>
+                <span><i class="fas fa-trash-alt" style="margin-right:7px;"></i><span data-i18n="cleaning_drop_high_missing">Drop High-Missing Cols</span></span>
                 <i class="fas fa-chevron-down" id="icon-panel-dropmiss"></i>
             </button>
             <div class="dc-sub-panel" id="panel-dropmiss">
                 <div class="dc-field">
-                    <label>Threshold Missing (%)</label>
+                    <label data-i18n="cleaning_dropmiss_threshold_label">Threshold Missing (%)</label>
                     <select id="dropmiss-thresh">
-                        <option value="0.5">50% ke atas</option>
-                        <option value="0.7">70% ke atas</option>
-                        <option value="0.9">90% ke atas</option>
+                        <option value="0.5" data-i18n="cleaning_dropmiss_50">50% ke atas</option>
+                        <option value="0.7" data-i18n="cleaning_dropmiss_70">70% ke atas</option>
+                        <option value="0.9" data-i18n="cleaning_dropmiss_90">90% ke atas</option>
                     </select>
                 </div>
                 <div class="dc-action-row">
                     <button class="dc-btn-preview" onclick="DCleaning.preview('drop_high_missing')">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> <span data-i18n="cleaning_preview">Preview</span>
                     </button>
                     <button class="dc-btn-apply" onclick="DCleaning.apply('drop_high_missing')">
-                        <i class="fas fa-check"></i> Apply
+                        <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply</span>
                     </button>
                 </div>
             </div>
@@ -836,11 +1063,11 @@
     <!-- ── TENGAH: Data Quality Report ── -->
     <div class="card dc-quality-card">
         <div class="quality-col-header">
-            <h4><i class="fas fa-clipboard-check text-purple"></i> Data Quality Report</h4>
+            <h4><i class="fas fa-clipboard-check text-purple"></i> <span data-i18n="dq_report_title">Data Quality Report</span></h4>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span id="dc-quality-badge-wrap"></span>
                 <button class="dc-btn-refresh-q" onclick="DCleaning.refreshQuality()">
-                    <i class="fas fa-sync-alt"></i> Refresh
+                    <i class="fas fa-sync-alt"></i> <span data-i18n="cleaning_refresh">Refresh</span>
                 </button>
             </div>
         </div>
@@ -848,14 +1075,14 @@
             <table class="data-table" id="dc-quality-table" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Column</th>
-                        <th>Data Type</th>
-                        <th>Missing</th>
-                        <th>Missing %</th>
-                        <th>Unique</th>
-                        <th>Outliers</th>
-                        <th>Issues</th>
-                        <th>Status</th>
+                        <th data-i18n="dq_table_column">Column</th>
+                        <th data-i18n="dq_table_dtype">Data Type</th>
+                        <th data-i18n="cleaning_stat_missing">Missing</th>
+                        <th data-i18n="ov_table_missing_pct">Missing %</th>
+                        <th data-i18n="ov_table_unique">Unique</th>
+                        <th data-i18n="cleaning_stat_outliers">Outliers</th>
+                        <th data-i18n="dq_table_issues">Issues</th>
+                        <th data-i18n="dq_table_status">Status</th>
                     </tr>
                 </thead>
                 <tbody id="dc-quality-tbody">
@@ -870,9 +1097,9 @@
                         <td style="font-size:.78rem;">{{ row.issues }}</td>
                         <td>
                             {% if row.status == 'ok' %}
-                            <span class="dc-badge dc-badge-success"><i class="fas fa-check"></i> OK</span>
+                            <span class="dc-badge dc-badge-success"><i class="fas fa-check"></i> <span data-i18n="cleaning_badge_ok">OK</span></span>
                             {% else %}
-                            <span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation"></i> Issue</span>
+                            <span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation"></i> <span data-i18n="cleaning_badge_issue">Issue</span></span>
                             {% endif %}
                         </td>
                     </tr>
@@ -886,14 +1113,14 @@
     <!-- ── KANAN: History / Undo Panel ── -->
     <div class="card dc-history-card">
         <div class="dc-history-header">
-            <h4><i class="fas fa-history text-blue"></i> History</h4>
+            <h4><i class="fas fa-history text-blue"></i> <span data-i18n="cleaning_history">History</span></h4>
             <button class="dc-btn-reset" onclick="DCleaning.confirmReset()">
-                <i class="fas fa-undo-alt"></i> Reset
+                <i class="fas fa-undo-alt"></i> <span data-i18n="cleaning_reset">Reset</span>
             </button>
         </div>
 
         <button class="dc-undo-last-btn" id="dc-undo-last-btn" onclick="DCleaning.undoLast()" disabled>
-            <i class="fas fa-step-backward"></i> Undo Langkah Terakhir
+            <i class="fas fa-step-backward"></i> <span data-i18n="cleaning_undo">Undo Langkah Terakhir</span>
         </button>
 
         <div class="dc-history-list" id="dc-history-list">
@@ -904,11 +1131,11 @@
                 <div class="dc-history-dot"></div>
                 <div style="flex:1;min-width:0;">
                     <div class="dc-history-label">{{ item.label }}</div>
-                    <div class="dc-history-meta">{{ item.rows }} baris · {{ item.cols }} kolom · {{ item.missing }} missing</div>
+                    <div class="dc-history-meta">{{ item.rows }} <span data-i18n="cleaning_history_rows">baris</span> · {{ item.cols }} <span data-i18n="cleaning_history_columns">kolom</span> · {{ item.missing }} <span data-i18n="cleaning_history_missing">missing</span></div>
                 </div>
                 {% if not item.is_initial %}
                 <button class="dc-history-undo" onclick="event.stopPropagation(); DCleaning.undoToFromUI({{ item.index }}, false)">
-                    <i class="fas fa-undo"></i> Ke sini
+                    <i class="fas fa-undo"></i> <span data-i18n="cleaning_undo_to_here">Ke sini</span>
                 </button>
                 {% endif %}
             </div>
@@ -918,10 +1145,10 @@
         <!-- Cleaning Log terkini -->
         <div style="padding:12px 14px;border-top:1px solid var(--border);">
             <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
-                <i class="fas fa-list-check"></i> Log Terkini
+                <i class="fas fa-list-check"></i> <span data-i18n="cleaning_log">Log Terkini</span>
             </div>
             <ul id="dc-log-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;">
-                {% for entry in cleaning_history[-1].log if cleaning_history[-1].log is defined else [] %}
+                {% for entry in cleaning_history[-1].log if cleaning_history is defined and cleaning_history and cleaning_history[-1].log is defined %}
                 <li style="font-size:.75rem;color:var(--text);display:flex;align-items:flex-start;gap:6px;line-height:1.45;">
                     <i class="fas fa-check-circle text-green" style="margin-top:2px;flex-shrink:0;"></i>
                     {{ entry }}
@@ -938,7 +1165,7 @@
 <div class="dc-preview-modal" id="dc-preview-modal">
     <div class="dc-preview-content">
         <div class="dc-preview-header">
-            <h3><i class="fas fa-eye text-blue"></i> Preview Perubahan</h3>
+            <h3><i class="fas fa-eye text-blue"></i> <span data-i18n="cleaning_preview">Preview Perubahan</span></h3>
             <button class="dc-preview-close" onclick="DCleaning.closePreview()">&times;</button>
         </div>
         <div class="dc-preview-body">
@@ -948,21 +1175,21 @@
             <div class="dc-diff-grid" id="dc-preview-diff"></div>
 
             <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px;">
-                <i class="fas fa-list-ul"></i> Detail Perubahan
+                <i class="fas fa-list-ul"></i> <span data-i18n="cleaning_preview_details">Detail Perubahan</span>
             </div>
             <ul class="dc-preview-log" id="dc-preview-log-list"></ul>
 
-            <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px;">
+            <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px;" data-i18n="cleaning_preview_data">
                 <i class="fas fa-table"></i> Preview Data (5 baris pertama setelah operasi)
             </div>
             <div class="dc-preview-table-wrap" id="dc-preview-table"></div>
 
             <div class="dc-preview-actions">
                 <button class="dc-btn-cancel-modal" onclick="DCleaning.closePreview()">
-                    <i class="fas fa-times"></i> Batal
+                    <i class="fas fa-times"></i> <span data-i18n="cleaning_preview_cancel">Batal</span>
                 </button>
                 <button class="dc-btn-confirm-modal" id="dc-btn-confirm-apply">
-                    <i class="fas fa-check"></i> Apply Perubahan Ini
+                    <i class="fas fa-check"></i> <span data-i18n="cleaning_apply">Apply Perubahan Ini</span>
                 </button>
             </div>
         </div>
@@ -989,6 +1216,10 @@ var DCleaning = (function () {
             .then(function(d){
                 if (d.ok) _colsCache = d.columns;
                 return _colsCache || [];
+            })
+            .catch(function(err){
+                console.error('[_fetchCols] Error:', err);
+                return [];
             });
     }
 
@@ -1042,6 +1273,12 @@ var DCleaning = (function () {
                 _buildChecklist('outlier-cols-list', cols, function(c){ return c.is_numeric; });
             } else if (panelId === 'panel-normalize') {
                 _buildChecklist('norm-cols-list', cols, function(c){ return c.is_numeric; });
+            } else if (panelId === 'panel-fixinc') {
+                _buildChecklist('fixinc-cols-list', cols);
+            } else if (panelId === 'panel-stdnum') {
+                _buildChecklist('stdnum-cols-list', cols);
+            } else if (panelId === 'panel-stdcat') {
+                _buildChecklist('stdcat-cols-list', cols);
             }
         });
     }
@@ -1087,6 +1324,36 @@ var DCleaning = (function () {
         if (op_type === 'drop_high_missing') {
             return { threshold: parseFloat(document.getElementById('dropmiss-thresh').value) };
         }
+        if (op_type === 'fix_inconsistencies') {
+            var scope = document.getElementById('fixinc-scope').value;
+            var params = { method: document.getElementById('fixinc-method').value };
+            if (scope === 'select') {
+                params.columns = _getChecked('fixinc-cols-list');
+            }
+            return params;
+        }
+        if (op_type === 'convert_dtypes') {
+            return { target: document.getElementById('convdt-target').value };
+        }
+        if (op_type === 'standardize_numeric') {
+            var scope = document.getElementById('stdnum-scope').value;
+            var params = {};
+            if (scope === 'select') {
+                params.columns = _getChecked('stdnum-cols-list');
+            }
+            return params;
+        }
+        if (op_type === 'standardize_categorical') {
+            var scope  = document.getElementById('stdcat-scope').value;
+            var params = {
+                bool_normalize: document.getElementById('stdcat-bool').checked,
+                normalize_case: document.getElementById('stdcat-case').value,
+            };
+            if (scope === 'select') {
+                params.columns = _getChecked('stdcat-cols-list');
+            }
+            return params;
+        }
         return {};
     }
 
@@ -1117,9 +1384,9 @@ var DCleaning = (function () {
         var colsSign = d.cols_removed > 0 ? '-' + d.cols_removed : '0';
         var missSign = d.miss_filled  > 0 ? '-' + d.miss_filled  : (d.miss_filled < 0 ? '+' + Math.abs(d.miss_filled) : '0');
         diff.innerHTML = [
-            _diffCard('Rows', d.rows_before + ' → ' + d.rows_after, rowsSign, d.rows_removed > 0),
-            _diffCard('Columns', d.cols_before + ' → ' + d.cols_after, colsSign, d.cols_removed > 0),
-            _diffCard('Missing', d.miss_before + ' → ' + d.miss_after, missSign, false),
+            _diffCard(I18N.t('cleaning_diff_rows'), d.rows_before + ' → ' + d.rows_after, rowsSign, d.rows_removed > 0),
+            _diffCard(I18N.t('cleaning_diff_columns'), d.cols_before + ' → ' + d.cols_after, colsSign, d.cols_removed > 0),
+            _diffCard(I18N.t('cleaning_diff_missing'), d.miss_before + ' → ' + d.miss_after, missSign, false),
         ].join('');
 
         // Log
@@ -1161,7 +1428,34 @@ var DCleaning = (function () {
         _doApply(op_type, {});
     }
 
+    function quickFix() {
+        var btn=document.getElementById('dc-btn-quickfix');
+        if (btn) btn.disabled=true;
+        _showSpinner(I18N.t('cleaning_spinner_quickfix'));
+        fetch(BASE+'/quickfix/'+FILENAME,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (!d.ok){ _hideSpinner(); _showBanner('warning',d.error||'Aksi Cepat gagal.'); if(btn) btn.disabled=false; return; }
+                _colsCache=null;
+                _updateUI(d,true);
+                _showBanner('success', I18N.t('cleaning_success_label') + d.label);
+            })
+            .catch(function(e){ _hideSpinner(); _showBanner('warning','Aksi Cepat error: '+e.message); if(btn) btn.disabled=false; });
+    }
+
+    function _showSpinner(msg) {
+        var el=document.getElementById('cleaning-spinner-overlay');
+        var txt=document.getElementById('cleaning-spinner-text');
+        if (el) el.style.display='flex';
+        if (txt) txt.textContent=msg||'Memproses data...';
+    }
+    function _hideSpinner() {
+        var el=document.getElementById('cleaning-spinner-overlay');
+        if (el) el.style.display='none';
+    }
+
     function _doApply(op_type, op_params) {
+        _showSpinner(I18N.t('cleaning_spinner_applying'));
         fetch(BASE + '/apply/' + FILENAME, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1169,16 +1463,18 @@ var DCleaning = (function () {
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
+            _hideSpinner();
             if (!d.ok) { _showBanner('warning', d.error || 'Operasi gagal.'); return; }
-            _colsCache = null; // reset cache kolom
+            _colsCache = null;
             _updateUI(d, true);
-            _showBanner('success', 'Berhasil: ' + d.label + '. Data siap digunakan.');
+            _showBanner('success', I18N.t('cleaning_success_label') + d.label + '. Data siap digunakan.');
         })
-        .catch(function(e){ _showBanner('warning', 'Apply error: ' + e.message); });
+        .catch(function(e){ _hideSpinner(); _showBanner('warning', 'Apply error: ' + e.message); });
     }
 
     /* ── Undo ── */
     function undoLast() {
+        _showSpinner(I18N.t('cleaning_spinner_undoing'));
         fetch(BASE + '/undo/' + FILENAME, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1186,10 +1482,16 @@ var DCleaning = (function () {
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
+            _hideSpinner();
             if (!d.ok) { _showBanner('warning', d.error || 'Undo gagal.'); return; }
             _colsCache = null;
             _updateUI(d, d.history.some(function(h){ return h.is_current && !h.is_initial; }));
             _showBanner('warning', 'Undo: kembali ke "' + d.current_label + '"');
+        })
+        .catch(function(err){
+            _hideSpinner();
+            _showBanner('error', 'Gagal undo: ' + err.message);
+            console.error(err);
         });
     }
 
@@ -1197,6 +1499,7 @@ var DCleaning = (function () {
         if (isInitial) {
             confirmReset(); return;
         }
+        _showSpinner(I18N.t('cleaning_spinner_restoring'));
         fetch(BASE + '/undo/' + FILENAME, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1204,17 +1507,24 @@ var DCleaning = (function () {
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
+            _hideSpinner();
             if (!d.ok) { _showBanner('warning', d.error || 'Undo gagal.'); return; }
             _colsCache = null;
             var isCleaned = d.history.some(function(h){ return h.is_current && !h.is_initial; });
             _updateUI(d, isCleaned);
             _showBanner(isCleaned ? 'success' : 'warning',
                 'Kembali ke: "' + d.current_label + '"');
+        })
+        .catch(function(err){
+            _hideSpinner();
+            _showBanner('error', 'Gagal undo: ' + err.message);
+            console.error(err);
         });
     }
 
     function confirmReset() {
-        if (!confirm('Reset semua langkah cleaning ke data awal (raw)?')) return;
+        if (!confirm(I18N.t('cleaning_confirm_reset'))) return;
+        _showSpinner(I18N.t('cleaning_spinner_resetting'));
         fetch(BASE + '/reset/' + FILENAME, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1222,10 +1532,11 @@ var DCleaning = (function () {
         })
         .then(function(r){ return r.json(); })
         .then(function(d){
+            _hideSpinner();
             if (!d.ok) { _showBanner('warning', d.error || 'Reset gagal.'); return; }
             _colsCache = null;
             _updateUI(d, false);
-            _showBanner('warning', 'Data direset ke kondisi awal (raw data).');
+            _showBanner('warning', I18N.t('cleaning_reset_success'));
         });
     }
 
@@ -1237,6 +1548,9 @@ var DCleaning = (function () {
                 if (!d.ok) return;
                 _updateQualityTable(d.quality);
                 _updateSummaryCards(d.quality.summary, d.rows, d.cols);
+            })
+            .catch(function(err){
+                console.error('[refreshQuality] Error:', err);
             });
     }
 
@@ -1245,6 +1559,7 @@ var DCleaning = (function () {
         // Update summary cards
         if (d.quality && d.quality.summary) {
             _updateSummaryCards(d.quality.summary, d.rows_now, d.cols_now);
+            _syncPanelsToCards();
         }
         // Update quality table
         if (d.quality && d.quality.columns) {
@@ -1281,6 +1596,7 @@ var DCleaning = (function () {
         _setCardState('dcs-outliers', s.total_outliers > 0);
         _setCardState('dcs-incons',   s.inconsistency_count > 0);
         _setCardState('dcs-irrel',    s.irrelevant_count > 0);
+        _syncPanelsToCards();
 
         // dtypes
         if (s.dtypes) {
@@ -1296,6 +1612,25 @@ var DCleaning = (function () {
         el.classList.toggle('all-good',  !hasIssue);
     }
 
+    /* ── Sync panel visibility to stat cards ── */
+    function _syncPanelsToCards() {
+        var showAll = document.getElementById('dc-show-all-cleaning').checked;
+        document.querySelectorAll('.dc-ops-section[data-issue-card]').forEach(function(section) {
+            if (showAll) {
+                section.style.display = '';
+                return;
+            }
+            var cardId = section.getAttribute('data-issue-card');
+            var card = document.getElementById(cardId);
+            var hasIssue = card && card.classList.contains('has-issue');
+            section.style.display = hasIssue ? '' : 'none';
+        });
+    }
+
+    function toggleShowAll() {
+        _syncPanelsToCards();
+    }
+
     function _updateQualityTable(quality) {
         var tbody = document.getElementById('dc-quality-tbody');
         if (!tbody || !quality.columns) return;
@@ -1309,8 +1644,8 @@ var DCleaning = (function () {
                 '<td class="' + (row.outliers > 0 ? 'text-danger' : '') + '">' + row.outliers + '</td>' +
                 '<td style="font-size:.78rem;">' + _esc(row.issues) + '</td>' +
                 '<td>' + (row.status === 'ok'
-                    ? '<span class="dc-badge dc-badge-success"><i class="fas fa-check"></i> OK</span>'
-                    : '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation"></i> Issue</span>') +
+                    ? '<span class="dc-badge dc-badge-success"><i class="fas fa-check"></i> <span data-i18n="cleaning_badge_ok">OK</span></span>'
+                    : '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation"></i> <span data-i18n="cleaning_badge_issue">Issue</span></span>') +
                 '</td>' +
                 '</tr>';
         }).join('');
@@ -1320,8 +1655,8 @@ var DCleaning = (function () {
         var badgeWrap = document.getElementById('dc-quality-badge-wrap');
         if (badgeWrap) {
             badgeWrap.innerHTML = hasIssues
-                ? '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation-triangle"></i> Perlu Cleaning</span>'
-                : '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> Data Clean</span>';
+                ? '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation-triangle"></i> ' + I18N.t('cleaning_needs_cleaning') + '</span>'
+                : '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> ' + I18N.t('cleaning_data_clean') + '</span>';
         }
     }
 
@@ -1337,7 +1672,7 @@ var DCleaning = (function () {
                 '<div class="dc-history-dot"></div>' +
                 '<div style="flex:1;min-width:0;">' +
                 '<div class="dc-history-label">' + _esc(item.label) + '</div>' +
-                '<div class="dc-history-meta">' + item.rows + ' baris · ' + item.cols + ' kolom · ' + item.missing + ' missing</div>' +
+                '<div class="dc-history-meta">' + item.rows + ' <span data-i18n="cleaning_history_rows">baris</span> · ' + item.cols + ' <span data-i18n="cleaning_history_columns">kolom</span> · ' + item.missing + ' <span data-i18n="cleaning_history_missing">missing</span></div>' +
                 '</div>' +
                 (!item.is_initial
                     ? '<button class="dc-history-undo" onclick="event.stopPropagation();DCleaning.undoToFromUI(' + item.index + ',false)">' +
@@ -1351,8 +1686,8 @@ var DCleaning = (function () {
         var el = document.getElementById('dc-status-badge');
         if (!el) return;
         el.innerHTML = isCleaned
-            ? '<span class="dc-badge dc-badge-success" style="font-size:.75rem;"><i class="fas fa-check-circle"></i> Data Bersih</span>'
-            : '<span class="dc-badge dc-badge-danger"  style="font-size:.75rem;"><i class="fas fa-exclamation-triangle"></i> Perlu Cleaning</span>';
+            ? '<span class="dc-badge dc-badge-success" style="font-size:.75rem;"><i class="fas fa-check-circle"></i> ' + I18N.t('cleaning_status_clean') + '</span>'
+            : '<span class="dc-badge dc-badge-danger"  style="font-size:.75rem;"><i class="fas fa-exclamation-triangle"></i> ' + I18N.t('cleaning_status_needs_cleaning') + '</span>';
     }
 
     function _refreshPreviewTab() {
@@ -1371,10 +1706,15 @@ var DCleaning = (function () {
                 var statusEl = document.getElementById('preview-status-label');
                 if (statusEl) {
                     statusEl.innerHTML = d.is_cleaned
-                        ? '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> Showing Cleaned Data</span>'
-                        : '<span class="dc-badge dc-badge-warning"><i class="fas fa-exclamation-triangle"></i> Showing Raw Data</span>';
+                        ? '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> ' + I18N.t('cleaning_preview_cleaned') + '</span>'
+                        : '<span class="dc-badge dc-badge-warning"><i class="fas fa-exclamation-triangle"></i> ' + I18N.t('cleaning_preview_raw') + '</span>';
                 }
-            });
+            })
+        .catch(function(err){
+            _hideSpinner();
+            _showError('Gagal reset: ' + err.message);
+            console.error(err);
+        });});
     }
 
     /* ── Banner ── */
@@ -1419,8 +1759,8 @@ var DCleaning = (function () {
         var badgeWrap = document.getElementById('dc-quality-badge-wrap');
         if (badgeWrap) {
             badgeWrap.innerHTML = hasIssues
-                ? '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation-triangle"></i> Perlu Cleaning</span>'
-                : '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> Data Clean</span>';
+                ? '<span class="dc-badge dc-badge-danger"><i class="fas fa-exclamation-triangle"></i> ' + I18N.t('cleaning_needs_cleaning') + '</span>'
+                : '<span class="dc-badge dc-badge-success"><i class="fas fa-check-circle"></i> ' + I18N.t('cleaning_data_clean') + '</span>';
         }
 
         // Tampilkan warning banner jika belum cleaned & ada isu
@@ -1484,6 +1824,15 @@ var DCleaning = (function () {
                 if (e.target === modal) closePreview();
             });
         }
+
+        // Show All toggle
+        var showAllToggle = document.getElementById('dc-show-all-cleaning');
+        if (showAllToggle) {
+            showAllToggle.addEventListener('change', _syncPanelsToCards);
+        }
+
+        // Initial panel sync
+        _syncPanelsToCards();
     }
 
     return {
@@ -1492,10 +1841,12 @@ var DCleaning = (function () {
         closePreview    : closePreview,
         apply           : apply,
         applyQuick      : applyQuick,
+        quickFix        : quickFix,
         undoLast        : undoLast,
         undoToFromUI    : undoToFromUI,
         confirmReset    : confirmReset,
         refreshQuality  : refreshQuality,
+        toggleShowAll   : toggleShowAll,
         init            : init,
     };
 })();

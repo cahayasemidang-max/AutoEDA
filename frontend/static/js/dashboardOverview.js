@@ -1,14 +1,10 @@
 'use strict';
 
 /**
- * dashboardOverview.js — v2 (with state management)
+ * dashboardOverview.js — v3 (dynamic auto-route overview)
  *
- * Perubahan utama:
- *  - Klik chart slot → simpan state (category, chartType, col) ke sessionStorage
- *    sebelum pindah ke tab Visualizations.
- *  - VizMaster membaca state dari sessionStorage saat tab dibuka.
- *  - Binary decode lengkap (parcoords, splom, marker.size, line.color).
- *  - Toggle title header ikut update saat dropdown berubah.
+ * Mendukung slot dinamis: ov_ts_line, ov_scatter, ov_pie, ov_bar,
+ * ov_histogram, ov_boxplot — dengan toggle drop-down otomatis.
  */
 
 var OverviewDashboard = (function () {
@@ -22,24 +18,7 @@ var OverviewDashboard = (function () {
         scrollZoom     : false,
     };
 
-    // ── Peta slot → {category, chartType} untuk state management ─────────────
-    var SLOT_VIZ_STATE = {
-        'ov_hbar'        : { category: 'categorical', chartType: 'pareto'    },
-        'ov_center'      : { category: 'categorical', chartType: 'pie'       },
-        'ov_vbar_left'   : { category: 'numerical',   chartType: 'histogram' },
-        'ov_area_bottom' : { category: 'numerical',   chartType: 'boxplot'   },
-        'ov_vbar_right'  : { category: 'categorical', chartType: 'bar'       },
-    };
-
-    var SLOT_TITLE_PREFIX = {
-        'ov_hbar'        : 'Pareto — ',
-        'ov_center'      : 'Composition — ',
-        'ov_vbar_left'   : 'Distribution — ',
-        'ov_area_bottom' : 'Spread — ',
-        'ov_vbar_right'  : 'Frequency — ',
-    };
-
-    // ── State management key ─────────────────────────────────────────────────
+    // ── State management ─────────────────────────────────────────────────────
     var VIZ_STATE_KEY = 'ds_viz_state';
 
     function _saveVizState(category, chartType, colX, colY) {
@@ -59,7 +38,6 @@ var OverviewDashboard = (function () {
             var raw = sessionStorage.getItem(VIZ_STATE_KEY);
             if (!raw) return null;
             var state = JSON.parse(raw);
-            // Expire setelah 5 menit (state yang terlalu lama diabaikan)
             if (Date.now() - (state.ts || 0) > 5 * 60 * 1000) {
                 sessionStorage.removeItem(VIZ_STATE_KEY);
                 return null;
@@ -87,9 +65,9 @@ var OverviewDashboard = (function () {
             },
             margin    : { l: 44, r: 16, t: 38, b: 38 },
             hoverlabel: {
-                bgcolor    : 'rgba(10,18,48,0.93)',
-                bordercolor: 'rgba(100,160,235,0.45)',
-                font       : { color: '#e8f4fc', size: 12 },
+                bgcolor    : dark ? 'rgba(10,18,48,0.93)' : 'rgba(255,255,255,0.93)',
+                bordercolor: dark ? 'rgba(100,160,235,0.45)' : 'rgba(0,0,0,0.12)',
+                font       : { color: dark ? '#e8f4fc' : '#1F2937', size: 12 },
             },
         };
     }
@@ -117,16 +95,12 @@ var OverviewDashboard = (function () {
     function _decodeTrace(trace) {
         if (!trace || typeof trace !== 'object') return trace;
         var decoded = Object.assign({}, trace);
-
-        // Decode scalar array fields
         ['x', 'y', 'z', 'values', 'labels', 'ids',
          'open', 'high', 'low', 'close', 'lat', 'lon'].forEach(function (f) {
             if (decoded[f] && typeof decoded[f] === 'object' && decoded[f].bdata) {
                 decoded[f] = _decodeBinaryField(decoded[f]);
             }
         });
-
-        // marker.size / marker.color
         if (decoded.marker && typeof decoded.marker === 'object') {
             decoded.marker = Object.assign({}, decoded.marker);
             ['size', 'color'].forEach(function(k) {
@@ -135,28 +109,23 @@ var OverviewDashboard = (function () {
                 }
             });
         }
-
-        // parcoords / splom dimensions
         if ((decoded.type === 'parcoords' || decoded.type === 'splom') &&
              Array.isArray(decoded.dimensions)) {
             decoded.dimensions = decoded.dimensions.map(function (dim) {
                 if (!dim || typeof dim !== 'object') return dim;
-                var d = Object.assign({}, dim); d
+                var d = Object.assign({}, dim);
                 if (d.values && typeof d.values === 'object' && d.values.bdata) {
                     d.values = _decodeBinaryField(d.values);
                 }
                 return d;
             });
         }
-
-        // line.color
         if (decoded.line && typeof decoded.line === 'object') {
             decoded.line = Object.assign({}, decoded.line);
             if (decoded.line.color && typeof decoded.line.color === 'object' && decoded.line.color.bdata) {
                 decoded.line.color = _decodeBinaryField(decoded.line.color);
             }
         }
-
         return decoded;
     }
 
@@ -169,17 +138,26 @@ var OverviewDashboard = (function () {
 
     // ── Draw single slot ──────────────────────────────────────────────────────
     function drawSlot(slotId, chartJson, force) {
-        if (!chartJson || typeof Plotly === 'undefined') return;
+        if (!chartJson || typeof Plotly === 'undefined') {
+            if (typeof Plotly === 'undefined' && typeof showToast === 'function') {
+                showToast(typeof I18N !== 'undefined' ? I18N.t('ov_plotly_unavailable') : 'Plotly library is not available.', 'error');
+            }
+            return;
+        }
         var el = document.getElementById(slotId);
         if (!el) return;
 
         if (!force && rendered.has(slotId)) {
-            Plotly.Plots.resize(el);
+            try { Plotly.Plots.resize(el); } catch (e) {}
             return;
         }
 
         var decoded = _decodeChartData(chartJson);
-        var layout  = Object.assign({}, decoded.layout || {}, getLayoutPatch());
+        var baseLayout = Object.assign({}, decoded.layout || {});
+        // Strip fixed dimensions agar mengikuti container
+        delete baseLayout.width;
+        delete baseLayout.height;
+        var layout  = Object.assign({}, baseLayout, getLayoutPatch(), {autosize: true});
 
         try { Plotly.purge(el); } catch (e) {}
         el.innerHTML = '';
@@ -187,210 +165,98 @@ var OverviewDashboard = (function () {
         Plotly.react(el, decoded.data || [], layout, PLOTLY_CFG)
             .then(function () { rendered.add(slotId); })
             .catch(function (err) {
-                console.warn('[Overview] Chart render failed:', slotId, err);
+                console.error('[Overview] Plotly error on', slotId, ':', err);
+                // Tampilkan pesan error di slot
+                if (el) {
+                    el.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px;text-align:center;">' + (typeof I18N !== 'undefined' ? I18N.t('ov_viz_load_failed') : 'Failed to load visualization.') + '</div>';
+                }
             });
     }
 
-    function renderAll() {
+    function renderAll(force) {
         if (!data || !data.slots) return;
         Object.keys(data.slots).forEach(function (key) {
             var slot = data.slots[key];
             if (slot && slot.visible && slot.chart) {
-                drawSlot(key, slot.chart, false);
+                drawSlot(key, slot.chart, !!force);
             }
         });
-    }
-
-    // ── Stats Preview Tables ──────────────────────────────────────────────────
-    function renderStatsPreview() {
-        if (!data || !data.stats_preview) return;
-        var sp = data.stats_preview;
-
-        var numWrap = document.getElementById('ov-stats-num-wrap');
-        if (numWrap && sp.num && sp.num.length > 0) {
-            var numHtml =
-                '<table class="ov-stats-table"><thead><tr>' +
-                '<th>Column</th><th>Mean</th><th>Median</th>' +
-                '<th>Std</th><th>Min</th><th>Max</th>' +
-                '<th>Outliers</th><th>Missing</th>' +
-                '</tr></thead><tbody>';
-            sp.num.forEach(function (r) {
-                var outCls = r.outliers > 0 ? 'ov-td-warn' : '';
-                var misCls = r.missing  > 0 ? 'ov-td-warn' : '';
-                numHtml +=
-                    '<tr><td class="ov-td-col">' + r.col    + '</td>' +
-                    '<td>' + r.mean   + '</td><td>' + r.median + '</td>' +
-                    '<td>' + r.std    + '</td><td>' + r.min    + '</td>' +
-                    '<td>' + r.max    + '</td>' +
-                    '<td class="' + outCls + '">' + r.outliers + '</td>' +
-                    '<td class="' + misCls + '">' + r.missing  + '</td></tr>';
-            });
-            numHtml += '</tbody></table>';
-            numWrap.innerHTML     = numHtml;
-            numWrap.style.display = 'block';
-            var nc = document.getElementById('ov-stats-num-card');
-            if (nc) nc.style.display = 'block';
-        }
-
-        var catWrap = document.getElementById('ov-stats-cat-wrap');
-        if (catWrap && sp.cat && sp.cat.length > 0) {
-            var catHtml =
-                '<table class="ov-stats-table"><thead><tr>' +
-                '<th>Column</th><th>Unique</th><th>Mode</th>' +
-                '<th>Mode %</th><th>Missing</th>' +
-                '</tr></thead><tbody>';
-            sp.cat.forEach(function (r) {
-                var misCls = r.missing  > 0  ? 'ov-td-warn'   : '';
-                var pctCls = r.mode_pct > 70 ? 'ov-td-danger' :
-                             r.mode_pct > 50 ? 'ov-td-warn'   : '';
-                catHtml +=
-                    '<tr><td class="ov-td-col">'   + r.col     + '</td>' +
-                    '<td>'                         + r.unique  + '</td>' +
-                    '<td class="ov-td-mode">'      + r.mode    + '</td>' +
-                    '<td class="' + pctCls + '">'  + r.mode_pct + '%</td>' +
-                    '<td class="' + misCls + '">'  + r.missing  + '</td></tr>';
-            });
-            catHtml += '</tbody></table>';
-            catWrap.innerHTML     = catHtml;
-            catWrap.style.display = 'block';
-            var cc = document.getElementById('ov-stats-cat-card');
-            if (cc) cc.style.display = 'block';
-        }
     }
 
     // ── Toggle dropdowns ─────────────────────────────────────────────────────
-
-    function _updateSlotTitle(slotId, colName) {
-        var prefix  = SLOT_TITLE_PREFIX[slotId] || '';
-        var titleEl = document.getElementById(slotId + '-title');
-        if (titleEl) titleEl.textContent = prefix + colName;
-    }
-
-    function _getActiveCol(slotId) {
-        // Ambil kolom yang sedang dipilih di toggle dropdown
-        var sel = document.getElementById('toggle-' + slotId);
-        return sel ? sel.value : null;
-    }
-
-    function _bindRegularToggle(slotId, toggle) {
-        var select = document.getElementById('toggle-' + slotId);
-        if (!select || !toggle.charts) return;
-        select.addEventListener('change', function () {
-            var col   = select.value;
-            var chart = toggle.charts[col];
-            if (chart) {
-                rendered.delete(slotId);
-                drawSlot(slotId, chart, true);
-                _updateSlotTitle(slotId, col);
-            }
-        });
-    }
-
-    function _bindScatterToggle(toggle) {
-        var selX = document.getElementById('scatter-col-x');
-        var selY = document.getElementById('scatter-col-y');
-        if (!selX || !selY) return;
-
-        function _redraw() {
-            var cx    = selX.value;
-            var cy    = selY.value;
-            var chart = (toggle.charts[cx] || {})[cy];
-            if (chart) {
-                rendered.delete('ov_top_right');
-                drawSlot('ov_top_right', chart, true);
-                var titleEl = document.getElementById('ov_top_right-title');
-                if (titleEl) titleEl.textContent = 'Scatter — ' + cx + ' × ' + cy;
-            }
-        }
-
-        selX.addEventListener('change', function () {
-            var cx = selX.value;
-            if (cx === selY.value) {
-                var opts = Array.from(selY.options).map(function(o) { return o.value; });
-                var alt  = opts.find(function(v) { return v !== cx; });
-                if (alt) selY.value = alt;
-            }
-            _redraw();
-        });
-
-        selY.addEventListener('change', function () {
-            var cy = selY.value;
-            if (cy === selX.value) {
-                var opts = Array.from(selX.options).map(function(o) { return o.value; });
-                var alt  = opts.find(function(v) { return v !== cy; });
-                if (alt) selX.value = alt;
-            }
-            _redraw();
-        });
-    }
 
     function bindToggles() {
         if (!data || !data.toggle_data) return;
         Object.keys(data.toggle_data).forEach(function (slotId) {
             var toggle = data.toggle_data[slotId];
-            if (!toggle) return;
-            if (slotId === 'ov_top_right' && toggle.type === 'scatter') {
-                _bindScatterToggle(toggle);
-            } else {
-                _bindRegularToggle(slotId, toggle);
-            }
+            if (!toggle || !toggle.charts) return;
+            var select = document.getElementById('toggle-' + slotId);
+            if (!select) return;
+            console.log('[Overview] bindToggles:', slotId, 'options:', toggle.options, 'has insights:', !!toggle.insights, 'insight keys:', toggle.insights ? Object.keys(toggle.insights) : 'N/A');
+            select.addEventListener('change', function () {
+                var col   = select.value;
+                var chart = toggle.charts[col];
+                var title = (toggle.titles || {})[col];
+                console.log('[Overview] toggle change:', slotId, 'col:', col, 'has chart:', !!chart, 'has title:', !!title);
+                if (chart) {
+                    rendered.delete(slotId);
+                    drawSlot(slotId, chart, true);
+                    var titleEl = document.getElementById(slotId + '-title');
+                    if (titleEl && title) titleEl.textContent = title;
+                    var insightEl = document.getElementById(slotId + '-insight');
+                    var insights = (toggle.insights || {})[col];
+                    console.log('[Overview] insight data:', slotId, 'col:', col, 'insights:', insights ? insights.length + ' items' : 'undefined', 'el:', !!insightEl);
+                    if (insightEl) {
+                        var label = typeof I18N !== 'undefined' ? I18N.t('ov_smart_insight') : 'Smart Insight';
+                        var html = '<div class="ov-smart-insight-label"><i class="fas fa-brain"></i> ' + label + '</div>';
+                        if (insights && insights.length > 0) {
+                            insights.slice(0, 2).forEach(function (ins) {
+                                html += '<div class="ov-smart-insight-item"><i class="fas ' + (ins.icon || 'fa-circle') + '"></i> ' + (ins.text || '') + '</div>';
+                            });
+                        } else {
+                            var fallback = typeof I18N !== 'undefined' ? I18N.t('viz_dataset_incompatible') : 'No insights available.';
+                            html += '<div class="ov-smart-insight-item"><i class="fas fa-brain"></i> ' + fallback + '</div>';
+                        }
+                        insightEl.innerHTML = html;
+                    }
+                }
+            });
         });
     }
 
-    // ── Click-through ke Visualizations dengan state management ──────────────
+    // ── Click navigation ──────────────────────────────────────────────────────
+    function goToVisualizations(tab, subTab) {
+        if (tab === 'timeseries') {
+            if (typeof switchTab === 'function') switchTab('timeseries');
+            setTimeout(function () {
+                if (typeof switchTsTab === 'function') switchTsTab(subTab || 'overview');
+            }, 90);
+            return;
+        }
+        if (typeof openVizCategory === 'function') {
+            openVizCategory(subTab || 'numerical');
+        } else if (typeof switchTab === 'function') {
+            switchTab('visualizations');
+        }
+    }
 
     function bindVizNavigation() {
         document.querySelectorAll('.ov-chart-slot[data-viz-tab]').forEach(function (el) {
             el.addEventListener('click', function (e) {
                 if (e.target.closest('.ov-toggle-wrap')) return;
-
-                // Cari slot ID dari chart area di dalam card
-                var chartEl = el.querySelector('.ov-chart-area');
-                var sid     = chartEl ? chartEl.id : null;
-
-                _navigateToSlot(sid, el);
+                goToVisualizations(el.getAttribute('data-viz-tab'), el.getAttribute('data-viz-sub'));
             });
         });
     }
 
-    function _navigateToSlot(slotId, cardEl) {
-        // ov_top_right: cek TS atau scatter
-        if (slotId === 'ov_top_right') {
-            var vizTab = cardEl ? cardEl.getAttribute('data-viz-tab') : 'visualizations';
-            if (vizTab === 'timeseries') {
-                if (typeof switchTab === 'function') switchTab('timeseries');
-                setTimeout(function () {
-                    if (typeof switchTsTab === 'function') switchTsTab('line');
-                }, 90);
-            } else {
-                // Scatter — simpan state X dan Y
-                var selX = document.getElementById('scatter-col-x');
-                var selY = document.getElementById('scatter-col-y');
-                var cx   = selX ? selX.value : null;
-                var cy   = selY ? selY.value : null;
-                _saveVizState('bivariate', 'scatter', cx, cy);
-                openVizCategory('bivariate', 'scatter');
-            }
-            return;
-        }
-
-        var target = SLOT_VIZ_STATE[slotId];
-        if (!target) {
-            if (cardEl) {
-                var sub = cardEl.getAttribute('data-viz-sub') || 'numerical';
-                openVizCategory(sub, null);
-            }
-            return;
-        }
-
-        // Ambil kolom yang sedang aktif di toggle
-        var activeCol = _getActiveCol(slotId);
-
-        // Simpan state ke sessionStorage
-        _saveVizState(target.category, target.chartType, activeCol, null);
-
-        // Navigasi
-        openVizCategory(target.category, target.chartType);
+    function bindPreviewNavigation() {
+        document.querySelectorAll('.ov-preview-card[data-sidebar], .ov-stats-card[data-sidebar]').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                if (e.target.closest('.ov-preview-table-wrap, .ov-stats-table-wrap')) return;
+                var tab = el.getAttribute('data-sidebar');
+                if (typeof switchTab === 'function') switchTab(tab);
+            });
+        });
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -400,19 +266,20 @@ var OverviewDashboard = (function () {
         if (!data) return;
         bindToggles();
         bindVizNavigation();
+        bindPreviewNavigation();
         var overviewTab = document.getElementById('tab-overview');
         if (overviewTab && overviewTab.classList.contains('active-tab')) {
             setTimeout(function () {
                 renderAll();
-                renderStatsPreview();
             }, 200);
         }
     }
 
     function onTabShow() {
         setTimeout(function () {
+            bindVizNavigation();
+            bindPreviewNavigation();
             renderAll();
-            renderStatsPreview();
         }, 120);
     }
 
@@ -420,7 +287,7 @@ var OverviewDashboard = (function () {
         rendered.forEach(function (slotId) {
             var el = document.getElementById(slotId);
             if (el && el._fullLayout && typeof Plotly !== 'undefined') {
-                Plotly.Plots.resize(el);
+                try { Plotly.Plots.resize(el); } catch (e) {}
             }
         });
     }
@@ -430,7 +297,9 @@ var OverviewDashboard = (function () {
         onTabShow         : onTabShow,
         onResize          : onResize,
         renderAll         : renderAll,
-        renderStatsPreview: renderStatsPreview,
+        bindToggles       : bindToggles,
+        bindVizNavigation : bindVizNavigation,
+        goToVisualizations: goToVisualizations,
         readVizState      : readVizState,
         clearVizState     : clearVizState,
         saveVizState      : _saveVizState,

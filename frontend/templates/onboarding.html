@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="onboarding_page_title">Selamat Datang — DS Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        #onboarding-3d-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .onb-container {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="onboarding-page">
+
+<canvas id="onboarding-3d-bg"></canvas>
+
+<div class="onb-container">
+    <div class="onb-progress-bar">
+        <div class="onb-progress-fill" id="onb-progress"></div>
+    </div>
+
+    <div class="onb-step" id="onb-step-1">
+        <div class="onb-card">
+            <div class="onb-badge" data-i18n="onboarding_step1_badge">Langkah 1 dari 2</div>
+            <div class="onb-icon-row">
+                <i class="fas fa-users"></i>
+            </div>
+            <h2 data-i18n="onboarding_step1_heading">The Architects — ITSB</h2>
+            <p class="onb-sub" data-i18n="onboarding_step1_subtitle">Tim Data Science di balik DS Generator</p>
+
+            <div class="onb-team-grid">
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/caroldupinopereira-cmyk/carol/main/carol_1-removebg-preview.png" alt="Carol" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Carol Dupino Pereira</h4>
+                        <span class="nim">52250051</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/adindaadeliafutri6-gif/refan/main/Foto_refan-removebg-preview.png" alt="Refantanur" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Refantanur Husnul Haqib</h4>
+                        <span class="nim">52250052</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/cahayasemidang-max/foto/cfc8d91ef344fb1beba4eadb93e4be67168bc2b8/FotoCahaya.png" alt="Cahaya" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Cahaya Medina Semidang</h4>
+                        <span class="nim">52250053</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/raihaniasyahputri/Foto_lulu/696dc3e134536210f870e9d5230b8fbeaad40e0d/IMG-20251129-WA0001.png" alt="Raihania" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Raihania Syah Putri</h4>
+                        <span class="nim">52250054</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/cahayasemidang-max/foto/b7534990c32ff093c6cb2faefc6282f5f6079296/FotoCloise.png" alt="Cloise" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Cloise Shafira</h4>
+                        <span class="nim">52250044</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+                <div class="onb-member team-card">
+                    <img src="https://raw.githubusercontent.com/caroldupinopereira-cmyk/adinda/main/adinda_baru-removebg-preview.png" alt="Adinda" onerror="this.style.display='none'">
+                    <div class="member-info">
+                        <h4>Adinda Adelia Futri</h4>
+                        <span class="nim">52250055</span>
+                        <span class="role-tag" data-i18n="team_role">Data Science</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="onb-btn" onclick="nextStep(2)">
+                <span data-i18n="onboarding_continue">Lanjutkan</span> <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="onb-step hidden" id="onb-step-2">
+        <div class="onb-card">
+            <div class="onb-badge" data-i18n="onboarding_step2_badge">Langkah 2 dari 2</div>
+            <div class="onb-icon-row">
+                <i class="fas fa-compass"></i>
+            </div>
+            <h2 data-i18n="onboarding_step2_heading">Tutorial Alur Kerja Platform</h2>
+            <p class="onb-sub" data-i18n="onboarding_step2_subtitle">3 tahap sederhana untuk mengubah data menjadi wawasan</p>
+
+            <div class="onb-tutorial-stages">
+                <div class="onb-stage workflow-step">
+                    <div class="stage-icon" style="background:rgba(67,24,255,0.1);color:#4318ff;">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="stage-content">
+                        <h4 data-i18n="onboarding_stage1_title">1. Unggahan</h4>
+                        <p data-i18n="onboarding_stage1_desc">Upload your CSV, Excel, or TXT datasets. Drag & drop or browse — we support files up to 100MB.</p>
+                    </div>
+                </div>
+
+                <div class="onb-stage-connector">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+
+                <div class="onb-stage workflow-step">
+                    <div class="stage-icon" style="background:rgba(16,185,129,0.1);color:#10B981;">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stage-content">
+                        <h4 data-i18n="onboarding_stage2_title">2. Pemrosesan</h4>
+                        <p data-i18n="onboarding_stage2_desc">Clean, transform, and compute statistics on your data. Preview changes, handle missing values, and explore distributions.</p>
+                    </div>
+                </div>
+
+                <div class="onb-stage-connector">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+
+                <div class="onb-stage workflow-step">
+                    <div class="stage-icon" style="background:rgba(245,158,11,0.1);color:#F59E0B;">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="stage-content">
+                        <h4 data-i18n="onboarding_stage3_title">3. Wawasan</h4>
+                        <p data-i18n="onboarding_stage3_desc">Generate rich visualizations, smart insights, time series analysis, and export reports in PDF, HTML, Excel, or CSV.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="onb-btn launch-btn" onclick="completeOnboarding()">
+                <span data-i18n="hero_cta">Mulai Analisis Sekarang</span>
+                <i class="fas fa-rocket"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+var currentStep = 1;
+
+function nextStep(step) {
+    document.getElementById('onb-step-1').classList.add('hidden');
+    document.getElementById('onb-step-2').classList.remove('hidden');
+    document.getElementById('onb-progress').style.width = '100%';
+    currentStep = 2;
+}
+
+function completeOnboarding() {
+    var btn = document.querySelector('.launch-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + I18N.t('onboarding_preparing');
+
+    fetch('{{ url_for("auth.complete_onboarding") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            window.location.href = data.redirect;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<span>' + I18N.t('hero_cta') + '</span> <i class="fas fa-rocket"></i>';
+            alert(data.error || I18N.t('onboarding_error'));
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<span>' + I18N.t('hero_cta') + '</span> <i class="fas fa-rocket"></i>';
+        alert(I18N.t('onboarding_network_error'));
+    });
+}
+
+// ── Premium 3D Particle Constellation ──
+(function() {
+    var canvas = document.getElementById('onboarding-3d-bg');
+    if (!canvas || typeof THREE === 'undefined') return;
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0e1a, 0.012);
+
+    var camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 2, 10);
+    camera.lookAt(0, 0, 0);
+
+    var renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0a0e1a, 0);
+
+    // ── Cursor tracking with lerp target ──
+    var mouseTarget = { x: 0, y: 0 };
+    var mouseCurrent = { x: 0, y: 0 };
+
+    document.addEventListener('mousemove', function(e) {
+        mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // ── Torus Knot (hero geometry) ──
+    var knotGeo = new THREE.TorusKnotGeometry(2.2, 0.65, 180, 24);
+    var knotMat = new THREE.MeshBasicMaterial({
+        color: 0x7000FF,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.12
+    });
+    var knot = new THREE.Mesh(knotGeo, knotMat);
+    knot.position.y = 0.5;
+    scene.add(knot);
+
+    // ── Glowing particles orbiting the knot ──
+    var orbCount = 600;
+    var orbPos = new Float32Array(orbCount * 3);
+    var orbColors = new Float32Array(orbCount * 3);
+    var orbRadii = new Float32Array(orbCount);
+    var orbSpeeds = new Float32Array(orbCount);
+    var orbAngles = new Float32Array(orbCount);
+    var orbPhases = new Float32Array(orbCount);
+
+    for (var i = 0; i < orbCount; i++) {
+        var radius = 2.8 + Math.random() * 2.5;
+        var angle = Math.random() * Math.PI * 2;
+        var phase = (Math.random() - 0.5) * 2;
+        var speed = 0.0003 + Math.random() * 0.0008;
+        var up = (Math.random() - 0.5) * 2.5;
+
+        orbRadii[i] = radius;
+        orbAngles[i] = angle;
+        orbSpeeds[i] = speed;
+        orbPhases[i] = phase;
+        orbPos[i * 3] = Math.cos(angle) * radius;
+        orbPos[i * 3 + 1] = up;
+        orbPos[i * 3 + 2] = Math.sin(angle) * radius;
+
+        var t = Math.random();
+        if (t < 0.5) {
+            orbColors[i * 3] = 0.0;
+            orbColors[i * 3 + 1] = 0.95;
+            orbColors[i * 3 + 2] = 1.0;
+        } else {
+            orbColors[i * 3] = 0.44;
+            orbColors[i * 3 + 1] = 0.0;
+            orbColors[i * 3 + 2] = 1.0;
+        }
+    }
+
+    var orbGeo = new THREE.BufferGeometry();
+    orbGeo.setAttribute('position', new THREE.BufferAttribute(orbPos, 3));
+    orbGeo.setAttribute('color', new THREE.BufferAttribute(orbColors, 3));
+
+    var orbMat = new THREE.PointsMaterial({
+        size: 0.08,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var orbPoints = new THREE.Points(orbGeo, orbMat);
+    scene.add(orbPoints);
+
+    // ── Orbital connector lines (neural network connections) ──
+    var connPairs = [];
+    for (var i = 0; i < orbCount; i++) {
+        var connections = 2 + Math.floor(Math.random() * 3);
+        for (var c = 0; c < connections; c++) {
+            var j = Math.floor(Math.random() * orbCount);
+            if (j !== i) {
+                var dist = Math.abs(orbRadii[i] - orbRadii[j]);
+                if (dist < 1.2) {
+                    connPairs.push([i, j]);
+                }
+            }
+        }
+    }
+
+    var connPos = new Float32Array(connPairs.length * 6);
+    var connGeo = new THREE.BufferGeometry();
+    connGeo.setAttribute('position', new THREE.BufferAttribute(connPos, 3));
+
+    var connMat = new THREE.LineBasicMaterial({
+        color: 0x7000FF,
+        transparent: true,
+        opacity: 0.04
+    });
+    var connLines = new THREE.LineSegments(connGeo, connMat);
+    scene.add(connLines);
+
+    // ── Glow core ──
+    var coreGeo = new THREE.SphereGeometry(0.4, 16, 16);
+    var coreMat = new THREE.MeshBasicMaterial({
+        color: 0x00F3FF,
+        transparent: true,
+        opacity: 0.2
+    });
+    var core = new THREE.Mesh(coreGeo, coreMat);
+    core.position.y = 0.5;
+    scene.add(core);
+
+    // ── Ambient floating particles ──
+    var ambientCount = 300;
+    var ambPos = new Float32Array(ambientCount * 3);
+    var ambSizes = new Float32Array(ambientCount);
+    for (var i = 0; i < ambientCount; i++) {
+        ambPos[i * 3] = (Math.random() - 0.5) * 30;
+        ambPos[i * 3 + 1] = (Math.random() - 0.5) * 15;
+        ambPos[i * 3 + 2] = (Math.random() - 0.5) * 30 - 5;
+        ambSizes[i] = 0.02 + Math.random() * 0.04;
+    }
+    var ambGeo = new THREE.BufferGeometry();
+    ambGeo.setAttribute('position', new THREE.BufferAttribute(ambPos, 3));
+
+    var ambMat = new THREE.PointsMaterial({
+        color: 0x00F3FF,
+        size: 0.03,
+        transparent: true,
+        opacity: 0.15,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var ambPoints = new THREE.Points(ambGeo, ambMat);
+    scene.add(ambPoints);
+
+    // ── 3D Floating Data Particles (Matrix Dust) ──
+    var dustCount = 400;
+    var dustPos = new Float32Array(dustCount * 3);
+    var dustColors = new Float32Array(dustCount * 3);
+    var dustSpeeds = new Float32Array(dustCount);
+    var dustPhases = new Float32Array(dustCount);
+    var cyan = new THREE.Color(0x00F3FF);
+    var purple = new THREE.Color(0x7842FF);
+    for (var i = 0; i < dustCount; i++) {
+        dustPos[i * 3] = (Math.random() - 0.5) * 1000;
+        dustPos[i * 3 + 1] = (Math.random() - 0.5) * 1000;
+        dustPos[i * 3 + 2] = (Math.random() - 0.5) * 1000;
+        dustSpeeds[i] = 0.02 + Math.random() * 0.06;
+        dustPhases[i] = Math.random() * Math.PI * 2;
+        var t = Math.random();
+        var c = cyan.clone().lerp(purple, t);
+        dustColors[i * 3] = c.r;
+        dustColors[i * 3 + 1] = c.g;
+        dustColors[i * 3 + 2] = c.b;
+    }
+    var dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
+    dustGeo.setAttribute('color', new THREE.Float32BufferAttribute(dustColors, 3));
+    var dustMat = new THREE.PointsMaterial({
+        size: 2.5,
+        vertexColors: THREE.VertexColors,
+        transparent: true,
+        opacity: 0.6,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    var dustParticles = new THREE.Points(dustGeo, dustMat);
+    scene.add(dustParticles);
+
+    // ── Data grid ring ──
+    var ringPoints = [];
+    var ringColor = new THREE.Color(0x00F3FF);
+    for (var i = 0; i < 80; i++) {
+        var a = (i / 80) * Math.PI * 2;
+        var r = 3.8;
+        ringPoints.push(Math.cos(a) * r, 0.5, Math.sin(a) * r);
+    }
+    var ringGeo = new THREE.BufferGeometry();
+    ringGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ringPoints), 3));
+    var ringMat = new THREE.LineBasicMaterial({
+        color: 0x00F3FF,
+        transparent: true,
+        opacity: 0.08
+    });
+    var ringLine = new THREE.Line(ringGeo, ringMat);
+    scene.add(ringLine);
+
+    // ── Second ring, angled ──
+    var ring2Points = [];
+    for (var i = 0; i < 80; i++) {
+        var a = (i / 80) * Math.PI * 2;
+        var r = 4.2;
+        var x = Math.cos(a) * r;
+        var z = Math.sin(a) * r;
+        var y = 0.5 + Math.sin(a * 2) * 0.5;
+        ring2Points.push(x, y, z);
+    }
+    var ring2Geo = new THREE.BufferGeometry();
+    ring2Geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ring2Points), 3));
+    var ring2Mat = new THREE.LineBasicMaterial({
+        color: 0x7000FF,
+        transparent: true,
+        opacity: 0.06
+    });
+    var ring2Line = new THREE.Line(ring2Geo, ring2Mat);
+    scene.add(ring2Line);
+
+    // ── Group for rotation ──
+    var group = new THREE.Group();
+    group.add(knot);
+    group.add(core);
+    group.add(orbPoints);
+    group.add(connLines);
+    group.add(ringLine);
+    group.add(ring2Line);
+    scene.add(group);
+
+    var time = 0;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        time += 0.005;
+
+        // Smooth lerp mouse
+        mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * 0.035;
+        mouseCurrent.y += (mouseTarget.y - mouseCurrent.y) * 0.035;
+
+        var targetRotY = mouseCurrent.x * 0.5;
+        var targetRotX = mouseCurrent.y * 0.25;
+
+        group.rotation.y += (targetRotY - group.rotation.y) * 0.02;
+        group.rotation.x += (targetRotX - group.rotation.x) * 0.02;
+
+        // Slow automatic orbit
+        group.rotation.y += 0.0018;
+        group.rotation.z = Math.sin(time * 0.3) * 0.03;
+
+        // Update orbital particles
+        var op = orbGeo.attributes.position.array;
+        for (var i = 0; i < orbCount; i++) {
+            orbAngles[i] += orbSpeeds[i];
+            var rad = orbRadii[i];
+            var yOff = Math.sin(time * 0.5 + orbPhases[i]) * 1.2;
+            op[i * 3] = Math.cos(orbAngles[i]) * rad;
+            op[i * 3 + 1] = yOff;
+            op[i * 3 + 2] = Math.sin(orbAngles[i]) * rad;
+        }
+        orbGeo.attributes.position.needsUpdate = true;
+
+        // Update connector lines
+        var cp = connGeo.attributes.position.array;
+        for (var p = 0; p < connPairs.length; p++) {
+            var i1 = connPairs[p][0] * 3;
+            var i2 = connPairs[p][1] * 3;
+            cp[p * 6] = op[i1];
+            cp[p * 6 + 1] = op[i1 + 1];
+            cp[p * 6 + 2] = op[i1 + 2];
+            cp[p * 6 + 3] = op[i2];
+            cp[p * 6 + 4] = op[i2 + 1];
+            cp[p * 6 + 5] = op[i2 + 2];
+        }
+        connGeo.attributes.position.needsUpdate = true;
+
+        // Pulse opacity on connector lines
+        connMat.opacity = 0.03 + Math.sin(time * 0.8) * 0.02 + 0.02;
+
+        // Knot slow rotation
+        knot.rotation.x += 0.003;
+        knot.rotation.z += 0.002;
+
+        // Ambient particles drift
+        var ap = ambGeo.attributes.position.array;
+        for (var i = 0; i < ambientCount; i++) {
+            ap[i * 3 + 1] += 0.002;
+            if (ap[i * 3 + 1] > 8) {
+                ap[i * 3] = (Math.random() - 0.5) * 30;
+                ap[i * 3 + 1] = -8;
+                ap[i * 3 + 2] = (Math.random() - 0.5) * 30 - 5;
+            }
+        }
+        ambGeo.attributes.position.needsUpdate = true;
+
+        // Floating data particles drift
+        var dp = dustParticles.geometry.attributes.position.array;
+        for (var i = 0; i < dustCount; i++) {
+            dp[i * 3 + 1] += dustSpeeds[i];
+            dp[i * 3] += Math.sin(Date.now() * 0.0005 + dustPhases[i]) * 0.008;
+            dp[i * 3 + 2] += Math.cos(Date.now() * 0.0005 + dustPhases[i]) * 0.008;
+            if (dp[i * 3 + 1] > 500) {
+                dp[i * 3] = (Math.random() - 0.5) * 1000;
+                dp[i * 3 + 1] = -500;
+                dp[i * 3 + 2] = (Math.random() - 0.5) * 1000;
+            }
+        }
+        dustParticles.geometry.attributes.position.needsUpdate = true;
+
+        // Core glow pulse
+        core.scale.setScalar(1 + Math.sin(time * 1.5) * 0.15);
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+})();
+</script>
+
+</body>
+</html>

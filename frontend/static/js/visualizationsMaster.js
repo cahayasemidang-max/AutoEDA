@@ -33,31 +33,35 @@ var VizMaster = (function () {
         bivariate   : ['scatter', 'heatmap', 'scatter_matrix', 'regression_plot', 'bubble_chart'],
         catnum      : ['box_cat_num', 'violin_cat_num', 'grouped_bar', 'strip_plot'],
         compare     : ['violin_compare', 'grouped_bar_compare', 'parallel_coords'],
+        heatmap_all : ['heatmap_all'],
     };
 
-    var CHART_LABELS = {
-        histogram           : 'Histogram + KDE',
-        boxplot             : 'Box Plot',
-        density             : 'Density Plot (KDE)',
-        qq                  : 'QQ Plot — Normality',
-        violin              : 'Violin Plot',
-        bar                 : 'Bar Chart',
-        pie                 : 'Donut / Pie Chart',
-        count               : 'Count Plot',
-        pareto              : 'Pareto Chart',
-        scatter             : 'Scatter Plot',
-        heatmap             : 'Correlation Heatmap',
-        scatter_matrix      : 'Pair Plot / Scatter Matrix',
-        regression_plot     : 'Regression + 95% CI',
-        bubble_chart        : 'Bubble Chart',
-        box_cat_num         : 'Boxplot by Category',
-        violin_cat_num      : 'Violin by Category',
-        grouped_bar         : 'Grouped Bar Chart',
-        strip_plot          : 'Strip Plot',
-        violin_compare      : 'Violin Comparison',
-        grouped_bar_compare : 'Mean ± Std Comparison',
-        parallel_coords     : 'Parallel Coordinates',
-    };
+    function getChartLabels() {
+        return {
+            histogram           : I18N.t('viz_histogram'),
+            boxplot             : I18N.t('viz_boxplot'),
+            density             : I18N.t('viz_kde'),
+            qq                  : I18N.t('viz_qq'),
+            violin              : I18N.t('viz_violin'),
+            bar                 : I18N.t('viz_bar'),
+            pie                 : I18N.t('viz_pie'),
+            count               : I18N.t('viz_countplot'),
+            pareto              : I18N.t('viz_pareto'),
+            scatter             : I18N.t('viz_scatter'),
+            heatmap             : I18N.t('viz_heatmap'),
+            scatter_matrix      : I18N.t('viz_pairplot'),
+            regression_plot     : I18N.t('viz_regression_plot'),
+            bubble_chart        : I18N.t('viz_bubble_chart'),
+            box_cat_num         : I18N.t('viz_box_cat_num'),
+            violin_cat_num      : I18N.t('viz_violin_cat_num'),
+            grouped_bar         : I18N.t('viz_grouped_bar'),
+            strip_plot          : I18N.t('viz_strip_plot'),
+            violin_compare      : I18N.t('viz_violin_compare'),
+            grouped_bar_compare : I18N.t('viz_grouped_bar_compare'),
+            parallel_coords     : I18N.t('viz_parallel_coords'),
+            heatmap_all         : I18N.t('viz_heatmap_all'),
+        };
+    }
 
     var CATEGORY_CONFIG = {
         numerical   : { needsX: 'num',       needsY: false, needsZ: false },
@@ -65,11 +69,13 @@ var VizMaster = (function () {
         bivariate   : { needsX: 'num',       needsY: 'num', needsZ: 'num' },
         catnum      : { needsX: 'all',       needsY: 'all', needsZ: false },
         compare     : { needsX: 'multi-num', needsY: false, needsZ: false },
+        heatmap_all : { needsX: false,       needsY: false, needsZ: false },
     };
 
     var NO_DROPDOWN_CHARTS = {
         heatmap        : true,
         scatter_matrix : true,
+        heatmap_all    : true,
     };
 
     var VIZ_STATE_KEY = 'ds_viz_state';
@@ -159,7 +165,7 @@ var VizMaster = (function () {
     function isAvailable(category) {
         var n = (meta.num_cols || []).length;
         var c = (meta.cat_cols || []).length;
-        return { numerical: n>=1, categorical: c>=1, bivariate: n>=2, catnum: n>=1&&c>=1, compare: n>=2 }[category] !== false;
+        return { numerical: n>=1, categorical: c>=1, bivariate: n>=2, catnum: n>=1&&c>=1, compare: n>=2, heatmap_all: n+c>=2 }[category] !== false;
     }
 
     function defaultX(cat) {
@@ -188,7 +194,7 @@ var VizMaster = (function () {
         sel.innerHTML = '';
         types.forEach(function(t) {
             var opt = document.createElement('option');
-            opt.value = t; opt.textContent = CHART_LABELS[t] || t;
+            opt.value = t; opt.textContent = getChartLabels()[t] || t;
             sel.appendChild(opt);
         });
         sel.value = state.chartType || (types[0] || '');
@@ -225,7 +231,7 @@ var VizMaster = (function () {
 
         function _updateLabel() {
             var sel = selectedArr.filter(function(c){ return cols.indexOf(c) >= 0; });
-            btn.innerHTML = (sel.length === cols.length ? 'Semua variable' : sel.length + ' variable dipilih') +
+            btn.innerHTML = (sel.length === cols.length ? I18N.t('viz_all_variables') : sel.length + ' ' + I18N.t('viz_variables_selected')) +
                 ' <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.7;"></i>';
         }
         _updateLabel();
@@ -245,8 +251,8 @@ var VizMaster = (function () {
         var btnAll = document.createElement('button');
         var btnClr = document.createElement('button');
         var _bs = 'flex:1;padding:3px 0;font-size:.7rem;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,.1);font-family:inherit;';
-        btnAll.type='button'; btnAll.textContent='Semua'; btnAll.style.cssText=_bs+'background:#4364f7;color:#fff;';
-        btnClr.type='button'; btnClr.textContent='Kosongkan'; btnClr.style.cssText=_bs+'background:transparent;color:#8899bb;';
+        btnAll.type='button'; btnAll.textContent=I18N.t('viz_select_all'); btnAll.style.cssText=_bs+'background:#4364f7;color:#fff;';
+        btnClr.type='button'; btnClr.textContent=I18N.t('viz_clear'); btnClr.style.cssText=_bs+'background:transparent;color:#8899bb;';
         actRow.appendChild(btnAll); actRow.appendChild(btnClr);
         panel.appendChild(actRow);
 
@@ -340,7 +346,7 @@ var VizMaster = (function () {
         if (showX && selX) {
             if (isMultiNum) {
                 selX.style.display='none'; selX.multiple=false;
-                if (labelX) labelX.textContent='Pilih variable:';
+                if (labelX) labelX.textContent=I18N.t('viz_select_column');
                 var allNums = meta.num_cols||[];
 
                 // Jika ada forceColX (dari state), gunakan itu
@@ -356,14 +362,14 @@ var VizMaster = (function () {
                 state.colX = selectedCols.join(',');
                 _buildCheckboxDropdown(wrapX, allNums, selectedCols);
             } else if (cfg.needsX === 'all') {
-                if (labelX) labelX.textContent='variable X:';
+                if (labelX) labelX.textContent=I18N.t('viz_select_x');
                 var allCols = (meta.cat_cols||[]).concat(meta.num_cols||[]);
                 var targetX = forceColX || state.colX;
                 if (!targetX || allCols.indexOf(targetX)<0) targetX = (meta.cat_cols||[])[0]||allCols[0]||null;
                 state.colX = targetX;
                 fill(selX, allCols, state.colX);
             } else {
-                if (labelX) labelX.textContent='variable X';
+                if (labelX) labelX.textContent=I18N.t('viz_select_x');
                 var colsX = cfg.needsX==='cat' ? (meta.cat_cols||[]) : (meta.num_cols||[]);
                 var targetX2 = forceColX || state.colX;
                 if (!targetX2 || colsX.indexOf(targetX2)<0) targetX2 = colsX[0]||null;
@@ -375,14 +381,14 @@ var VizMaster = (function () {
         // Y dropdown
         if (showY && selY) {
             if (cfg.needsY === 'all') {
-                if (labelY) labelY.textContent='variable Y:';
+                if (labelY) labelY.textContent=I18N.t('viz_select_y');
                 var allColsY = (meta.cat_cols||[]).concat(meta.num_cols||[]);
                 var targetY = forceColY || state.colY;
                 if (!targetY || allColsY.indexOf(targetY)<0) targetY = (meta.num_cols||[])[0]||allColsY[0]||null;
                 state.colY = targetY;
                 fill(selY, allColsY, state.colY);
             } else {
-                if (labelY) labelY.textContent='variable Y';
+                if (labelY) labelY.textContent=I18N.t('viz_select_y');
                 var colsY = meta.num_cols||[];
                 var targetY2 = forceColY || state.colY;
                 if (!targetY2 || colsY.indexOf(targetY2)<0) targetY2 = defaultY(state.category);
@@ -417,10 +423,29 @@ var VizMaster = (function () {
         });
     }
 
+    // ── Insights ───────────────────────────────────────────────────────────────
+    function renderInsights(insights) {
+        var container = $$('viz-insight');
+        var items = $$('viz-insight-items');
+        if (!container || !items) return;
+        if (!insights || insights.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        items.innerHTML = '';
+        insights.slice(0, 3).forEach(function(ins) {
+            var item = document.createElement('div');
+            item.className = 'ov-smart-insight-item';
+            item.innerHTML = '<i class="fas ' + (ins.icon || 'fa-brain') + '"></i> ' + (ins.text || '');
+            items.appendChild(item);
+        });
+        container.style.display = 'block';
+    }
+
     function updateLabel() {
-        var titles = { numerical:'Numerical', categorical:'Categorical', bivariate:'Bivariate & Multi', catnum:'Cat vs Num', compare:'Comparison' };
+        var titles = { numerical:I18N.t('viz_numerical'), categorical:I18N.t('viz_categorical'), bivariate:I18N.t('viz_bivariate'), catnum:I18N.t('viz_catnum'), compare:I18N.t('viz_compare'), heatmap_all:I18N.t('viz_heatmap_all') };
         var titleEl = $$('viz-category-title');
-        if (titleEl) titleEl.textContent = titles[state.category] || 'Visualizations';
+        if (titleEl) titleEl.textContent = titles[state.category] || I18N.t('viz_visualizations');
         // Hide legacy counter/label
         var ctr = $$('viz-chart-counter');
         var lbl = $$('viz-chart-type-label');
@@ -432,9 +457,10 @@ var VizMaster = (function () {
     function showPlaceholder(msg) {
         var ph   = $$('viz-placeholder');
         var mc   = $$('viz-master-chart');
-        if (ph) { ph.style.display='flex'; var p=ph.querySelector('p'); if(p) p.textContent=msg||'Dataset tidak kompatibel.'; }
+        if (ph) { ph.style.display='flex'; var p=ph.querySelector('p'); if(p) p.textContent=msg||I18N.t('viz_dataset_incompatible'); }
         if (mc) mc.style.display='none';
         var kr = $$('viz-kpi-row'); if (kr) kr.innerHTML='';
+        var ins = $$('viz-insight'); if (ins) ins.style.display='none';
     }
     function showChart() {
         var ph=$$('viz-placeholder'); var mc=$$('viz-master-chart');
@@ -444,18 +470,50 @@ var VizMaster = (function () {
         if (!plotEl) return;
         plotEl.innerHTML='<div class="viz-loading" style="display:flex;align-items:center;justify-content:center;height:100%;">'+
             '<i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:#7EA9FF;"></i>'+
-            '<span style="font-size:.9rem;color:#7EA9FF;margin-left:10px;">Loading chart...</span></div>';
+            '<span style="font-size:.9rem;color:#7EA9FF;margin-left:10px;">'+I18N.t('viz_loading')+'</span></div>';
+        var ins = $$('viz-insight'); if (ins) ins.style.display='none';
     }
     function setError(plotEl, msg) {
         if (!plotEl) return;
         plotEl.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'+
             'height:100%;padding:24px;text-align:center;">'+
             '<i class="fas fa-exclamation-circle" style="font-size:2rem;color:#ee5d50;margin-bottom:12px;"></i>'+
-            '<p style="color:#ee5d50;margin-bottom:14px;font-size:.9rem;">'+(msg||'Gagal memuat grafik')+'</p>'+
+            '<p style="color:#ee5d50;margin-bottom:14px;font-size:.9rem;">'+(msg||I18N.t('viz_chart_load_failed'))+'</p>'+
             '<button onclick="VizMaster.retry()" style="padding:7px 18px;border-radius:8px;'+
             'border:1px solid rgba(126,169,255,.4);background:rgba(126,169,255,.12);'+
             'color:#c8d8f0;cursor:pointer;font-family:inherit;font-size:.8rem;">'+
-            '<i class="fas fa-redo"></i> Coba Lagi</button></div>';
+            '<i class="fas fa-redo"></i> '+I18N.t('viz_retry')+'</button></div>';
+    }
+
+    // ── Render from pre-rendered data (offline HTML report) ────────────────
+    function renderPrerendered(category, chartType) {
+        // Only use pre-rendered data in offline HTML report (file:// protocol)
+        if (window.location.protocol !== 'file:') return false;
+        if (typeof vizPreRendered === 'undefined' || !vizPreRendered) return false;
+        var catData = vizPreRendered[category];
+        if (!catData || !catData[chartType]) return false;
+        var data = catData[chartType];
+        var plotEl = $$('viz-master-plot');
+        if (!plotEl) return false;
+        renderKpis(data.kpis || []);
+        renderInsights(data.insights || []);
+        state.chartType = chartType;
+        state.chartIndex = data.chart_index || 0;
+        updateLabel();
+        _syncChartTypeDropdown();
+        showChart();
+        if (typeof Plotly === 'undefined') { setError(plotEl, I18N.t('viz_plotly_not_loaded')); return true; }
+        if (!data.chart) { setError(plotEl, I18N.t('viz_chart_data_empty')); return true; }
+        var chartDecoded = _decodeChartData(data.chart);
+        try { Plotly.purge(plotEl); } catch(e) {}
+        plotEl.innerHTML = '';
+        var layout = Object.assign({}, chartDecoded.layout || {}, { autosize:true, margin:{l:54,r:24,t:56,b:52} });
+        Plotly.newPlot(plotEl, chartDecoded.data || [], layout, {
+            responsive:true, displayModeBar:true, displaylogo:false,
+            modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d'],
+            toImageButtonOptions:{format:'png',scale:2},
+        }).catch(function(err){ setError(plotEl, I18N.t('viz_rendering_error')+': '+err.message); });
+        return true;
     }
 
     // ── Fetch and render ──────────────────────────────────────────────────────
@@ -464,13 +522,14 @@ var VizMaster = (function () {
 
         if (!isAvailable(state.category)) {
             var MSGS = {
-                numerical:'Gunakan dataset dengan minimal 1 kolom numerik.',
-                categorical:'Gunakan dataset dengan kolom kategorik.',
-                bivariate:'Gunakan dataset dengan minimal 2 kolom numerik.',
-                catnum:'Gunakan dataset dengan kolom numerik dan kategorik.',
-                compare:'Gunakan dataset dengan minimal 2 kolom numerik.',
+                numerical:I18N.t('viz_req_numerical'),
+                categorical:I18N.t('viz_req_categorical'),
+                bivariate:I18N.t('viz_req_bivariate'),
+                catnum:I18N.t('viz_req_catnum'),
+                compare:I18N.t('viz_req_compare'),
+                heatmap_all:I18N.t('viz_req_heatmap_all'),
             };
-            showPlaceholder(MSGS[state.category]||'Dataset tidak kompatibel.');
+            showPlaceholder(MSGS[state.category]||I18N.t('viz_dataset_incompatible'));
             return;
         }
 
@@ -481,6 +540,12 @@ var VizMaster = (function () {
             state.chartIndex=types.indexOf(state.chartType);
         }
 
+        // Use pre-rendered data if available (offline HTML report)
+        if (renderPrerendered(state.category, state.chartType)) {
+            state.loading = false;
+            return;
+        }
+
         _syncChartTypeDropdown();
         if (_activeController) try { _activeController.abort(); } catch(e) {}
         var controller=null, signal=undefined;
@@ -489,7 +554,9 @@ var VizMaster = (function () {
         }
 
         var params = new URLSearchParams({ category:state.category, chart_type:state.chartType });
-        var strictNoDD = (state.chartType==='heatmap'||state.chartType==='scatter_matrix');
+        var currentTheme = localStorage.getItem('ds-theme') || 'dark';
+        params.set('theme', currentTheme);
+        var strictNoDD = (state.chartType==='heatmap'||state.chartType==='scatter_matrix'||state.chartType==='heatmap_all');
         if (state.colX && !strictNoDD) params.set('col_x', state.colX);
         if (state.colY && !strictNoDD && state.category!=='compare') params.set('col_y', state.colY);
         if (state.colZ && state.chartType==='bubble_chart') params.set('col_z', state.colZ);
@@ -505,13 +572,14 @@ var VizMaster = (function () {
             .then(function(r){ clearTimeout(tid); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
             .then(function(data) {
                 state.loading=false; _activeController=null;
-                if (!data.ok) { showPlaceholder(data.placeholder||'Grafik tidak tersedia.'); renderKpis(data.kpis||[]); return; }
+                if (!data.ok) { showPlaceholder(data.placeholder||I18N.t('viz_chart_unavailable')); renderKpis(data.kpis||[]); return; }
                 renderKpis(data.kpis||[]);
+                renderInsights(data.insights||[]);
                 state.chartType  = data.chart_type  || state.chartType;
                 state.chartIndex = data.chart_index != null ? data.chart_index : state.chartIndex;
                 updateLabel(); _syncChartTypeDropdown();
-                if (typeof Plotly==='undefined') { setError(plotEl,'Plotly.js belum dimuat.'); return; }
-                if (!data.chart) { setError(plotEl,'Data grafik kosong dari server.'); return; }
+                if (typeof Plotly==='undefined') { setError(plotEl,I18N.t('viz_plotly_not_loaded')); return; }
+                if (!data.chart) { setError(plotEl,I18N.t('viz_chart_data_empty_server')); return; }
                 var chartDecoded = _decodeChartData(data.chart);
                 try { Plotly.purge(plotEl); } catch(e) {}
                 plotEl.innerHTML='';
@@ -520,20 +588,20 @@ var VizMaster = (function () {
                     responsive:true, displayModeBar:true, displaylogo:false,
                     modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d'],
                     toImageButtonOptions:{format:'png',scale:2},
-                }).catch(function(err){ setError(plotEl,'Rendering error: '+err.message); });
+                }).catch(function(err){ setError(plotEl,I18N.t('viz_rendering_error')+': '+err.message); });
             })
             .catch(function(err) {
                 clearTimeout(tid); state.loading=false; _activeController=null;
                 if (err.name==='AbortError') return;
                 if (!isRetry) { setTimeout(function(){ fetchAndRender(true); }, 900); return; }
-                setError(plotEl, 'Gagal memuat grafik: '+(err.message||'Unknown error'));
+                setError(plotEl, I18N.t('viz_chart_load_failed')+': '+(err.message||I18N.t('viz_unknown_error')));
             });
     }
 
     // ── Sidebar highlight ─────────────────────────────────────────────────────
     function highlightSidebar(category) {
         document.querySelectorAll('.nav-sub-item').forEach(function(li){ li.classList.remove('active'); });
-        var MAP = { numerical:'menu-viz-num', categorical:'menu-viz-cat', bivariate:'menu-viz-biv', catnum:'menu-viz-catnum', compare:'menu-viz-compare' };
+        var MAP = { numerical:'menu-viz-num', categorical:'menu-viz-cat', bivariate:'menu-viz-biv', catnum:'menu-viz-catnum', compare:'menu-viz-compare', heatmap_all:'menu-viz-heatmap-all' };
         var el = document.getElementById(MAP[category]);
         if (el) el.classList.add('active');
         var accBody = document.getElementById('acc-viz');

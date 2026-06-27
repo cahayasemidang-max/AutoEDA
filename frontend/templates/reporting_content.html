@@ -1,0 +1,669 @@
+
+<style>
+:root {
+  --rpt-card-radius: 14px;
+  --rpt-transition: .24s cubic-bezier(.4,0,.2,1);
+}
+
+.rpt-hero {
+  margin-bottom: 32px;
+}
+.rpt-hero h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rpt-hero p {
+  color: var(--muted);
+  font-size: .9rem;
+  margin-top: 6px;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.rpt-meta-bar {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 28px;
+}
+.rpt-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rpt-meta-label {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+.rpt-meta-value {
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rpt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.rpt-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rpt-card-radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: all var(--rpt-transition);
+  position: relative;
+  overflow: hidden;
+}
+.rpt-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--rpt-card-radius) var(--rpt-card-radius) 0 0;
+}
+.rpt-card:hover {
+  border-color: transparent;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,.08);
+}
+.dark-theme .rpt-card:hover {
+  box-shadow: 0 12px 32px rgba(0,0,0,.35);
+}
+
+.rpt-card.pdf::before   { background: #ff3b30; }
+.rpt-card.html::before  { background: #007aff; }
+.rpt-card.excel::before { background: #34c759; }
+.rpt-card.csv::before   { background: #ff9500; }
+
+.rpt-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.rpt-card.pdf .rpt-card-icon   { background: rgba(255,59,48,.12); color: #ff3b30; }
+.rpt-card.html .rpt-card-icon  { background: rgba(0,122,255,.12); color: #007aff; }
+.rpt-card.excel .rpt-card-icon { background: rgba(52,199,89,.12); color: #34c759; }
+.rpt-card.csv .rpt-card-icon   { background: rgba(255,149,0,.12); color: #ff9500; }
+
+.rpt-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rpt-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.rpt-card-desc {
+  font-size: .78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.rpt-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  width: fit-content;
+}
+.rpt-card-btn {
+  margin-top: 4px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: .82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .18s;
+  text-decoration: none;
+}
+.rpt-card.pdf .rpt-card-btn   { background: #ff3b30; color: #fff; }
+.rpt-card.pdf .rpt-card-btn:hover   { background: #d62820; }
+.rpt-card.html .rpt-card-btn  { background: #007aff; color: #fff; }
+.rpt-card.html .rpt-card-btn:hover  { background: #0055cc; }
+.rpt-card.excel .rpt-card-btn { background: #34c759; color: #fff; }
+.rpt-card.excel .rpt-card-btn:hover { background: #28a745; }
+.rpt-card.csv .rpt-card-btn   { background: #ff9500; color: #fff; }
+.rpt-card.csv .rpt-card-btn:hover   { background: #cc7700; }
+
+.rpt-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.rpt-empty i {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: .4;
+}
+.rpt-empty h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.rpt-empty p {
+  font-size: .85rem;
+  max-width: 420px;
+  margin: 0 auto 20px;
+  line-height: 1.6;
+}
+.rpt-empty .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  border-radius: 10px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  font-size: .88rem;
+  text-decoration: none;
+  font-family: inherit;
+  transition: .18s;
+}
+.rpt-empty .btn-primary:hover {
+  background: #3700e0;
+  transform: translateY(-1px);
+}
+
+/* ── Inline PDF Selector Panel ──────────────────────────────── */
+.rpt-pdf-selector {
+  margin-top: 24px;
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .35s ease, padding .35s ease;
+}
+.rpt-pdf-selector.open {
+  max-height: 700px;
+  padding: 20px 24px;
+}
+.rpt-pdf-selector-inner {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+}
+.rpt-pdf-selector-title {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.rpt-pdf-selector-desc {
+  font-size: .82rem;
+  color: var(--muted);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+.rpt-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.rpt-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: .18s;
+}
+.rpt-check-item:hover {
+  border-color: var(--blue);
+  background: rgba(67,24,255,.04);
+}
+.rpt-check-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--blue);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.rpt-check-label {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.rpt-check-desc {
+  font-size: .72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.rpt-preview-box {
+  display: none;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.rpt-preview-box.visible {
+  display: block;
+}
+.rpt-preview-title {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.rpt-preview-content {
+  font-size: .78rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+.rpt-preview-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: .74rem;
+}
+.rpt-preview-stats span {
+  background: var(--card-bg);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.rpt-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.rpt-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: .82rem;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: .18s;
+}
+.rpt-actions .btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.rpt-actions .btn-secondary {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.rpt-actions .btn-secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+.rpt-actions .btn-primary {
+  background: #ff3b30;
+  color: #fff;
+}
+.rpt-actions .btn-primary:hover:not(:disabled) {
+  background: #d62820;
+}
+
+/* ── Spinner ─────────────────────────────────────────── */
+@keyframes rpt-spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="rpt-hero">
+  <h2><i class="fas fa-file-export text-blue"></i> <span data-i18n="nav_reporting_sys">Reporting System</span></h2>
+  <p data-i18n="rpt_subtitle">Generate and download comprehensive reports for your dataset. Choose from PDF reports, interactive HTML dashboards, Excel spreadsheets, or CSV exports.</p>
+</div>
+
+{% if filename %}
+  {% set fname = filename %}
+
+  <div class="rpt-meta-bar">
+    <div class="rpt-meta-item">
+      <span class="rpt-meta-label" data-i18n="sdi_filename">Dataset</span>
+      <span class="rpt-meta-value">{{ dataset_info.name }}</span>
+    </div>
+    <div class="rpt-meta-item">
+      <span class="rpt-meta-label" data-i18n="sdi_filesize">Size</span>
+      <span class="rpt-meta-value">{{ dataset_info.size }}</span>
+    </div>
+    <div class="rpt-meta-item">
+      <span class="rpt-meta-label" data-i18n="sdi_uploaded">Uploaded</span>
+      <span class="rpt-meta-value">{{ dataset_info.time }}</span>
+    </div>
+    <div class="rpt-meta-item">
+      <span class="rpt-meta-label" data-i18n="rpt_rows">Rows</span>
+      <span class="rpt-meta-value">{{ dataset_info.rows }}</span>
+    </div>
+    <div class="rpt-meta-item">
+      <span class="rpt-meta-label" data-i18n="rpt_cols">Columns</span>
+      <span class="rpt-meta-value">{{ dataset_info.cols }}</span>
+    </div>
+  </div>
+
+    <div class="rpt-grid">
+        <div class="rpt-card pdf" style="cursor:pointer;">
+            <div class="rpt-card-icon"><i class="fas fa-file-pdf"></i></div>
+            <div class="rpt-card-body">
+                <span class="rpt-card-title" data-i18n="nav_buat_laporan">Buat Laporan PDF</span>
+                <span class="rpt-card-desc" data-i18n="rpt_pdf_desc">Pilih jenis konten laporan (summary, detailed, correlation, action plan), pratinjau, lalu download PDF dengan bagian yang dipilih.</span>
+                <span class="rpt-card-badge" data-i18n="rpt_badge_pdf"><i class="fas fa-file"></i> .pdf</span>
+            </div>
+            <a href="#" class="rpt-card-btn" id="rpt-btn-open-selector">
+                <i class="fas fa-plus-circle"></i> <span data-i18n="rpt_select">Pilih & Buat</span>
+            </a>
+        </div>
+
+        <div class="rpt-card html">
+      <div class="rpt-card-icon"><i class="fas fa-file-code"></i></div>
+      <div class="rpt-card-body">
+        <span class="rpt-card-title" data-i18n="nav_dl_html">Download HTML Dashboard</span>
+        <span class="rpt-card-desc" data-i18n="rpt_html_desc">Standalone interactive HTML dashboard with all charts and tables embedded — works offline in any browser.</span>
+        <span class="rpt-card-badge" data-i18n="rpt_badge_html"><i class="fas fa-globe"></i> .html</span>
+      </div>
+      <a href="{{ url_for('download_report_html', filename=fname) }}" target="_blank"
+         onclick="showDownloadToast('HTML Dashboard')" class="rpt-card-btn">
+        <i class="fas fa-download"></i> <span data-i18n="rpt_download">Download</span>
+      </a>
+    </div>
+
+    <div class="rpt-card excel">
+      <div class="rpt-card-icon"><i class="fas fa-file-excel"></i></div>
+      <div class="rpt-card-body">
+        <span class="rpt-card-title" data-i18n="nav_exp_excel">Export to Excel</span>
+        <span class="rpt-card-desc" data-i18n="rpt_excel_desc">Clean, structured Excel file with auto-filter enabled and properly sized columns — ready for further analysis.</span>
+        <span class="rpt-card-badge" data-i18n="rpt_badge_xlsx"><i class="fas fa-table"></i> .xlsx</span>
+      </div>
+      <a href="{{ url_for('export_excel', filename=fname) }}"
+         onclick="showDownloadToast('Excel Report')" class="rpt-card-btn">
+        <i class="fas fa-download"></i> <span data-i18n="rpt_download">Download</span>
+      </a>
+    </div>
+
+    <div class="rpt-card csv">
+      <div class="rpt-card-icon"><i class="fas fa-file-csv"></i></div>
+      <div class="rpt-card-body">
+        <span class="rpt-card-title" data-i18n="nav_exp_csv">Export to CSV</span>
+        <span class="rpt-card-desc" data-i18n="rpt_csv_desc">Lightweight CSV export of your cleaned dataset — ideal for data interchange and compatibility with any tool.</span>
+        <span class="rpt-card-badge" data-i18n="rpt_badge_csv"><i class="fas fa-file"></i> .csv</span>
+      </div>
+      <a href="{{ url_for('export_csv', filename=fname) }}"
+         onclick="showDownloadToast('CSV Report')" class="rpt-card-btn">
+        <i class="fas fa-download"></i> <span data-i18n="rpt_download">Download</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Inline PDF Selector Panel (hidden by default) ────────── -->
+  <div class="rpt-pdf-selector" id="rpt-pdf-selector">
+    <div class="rpt-pdf-selector-inner">
+      <div class="rpt-pdf-selector-title">
+        <i class="fas fa-file-pdf" style="color:#ff3b30;"></i>
+        <span data-i18n="rpt_buat_title">Buat Laporan PDF</span>
+      </div>
+      <div class="rpt-pdf-selector-desc" data-i18n="rpt_buat_desc">Centang bagian laporan yang ingin disertakan, generate pratinjau, lalu download PDF.</div>
+
+      <div class="rpt-check-grid">
+        <label class="rpt-check-item">
+          <input type="checkbox" value="summary" checked>
+          <div>
+            <div class="rpt-check-label" data-i18n="rpt_summary_label">Laporan Ringkasan</div>
+            <div class="rpt-check-desc" data-i18n="rpt_summary_desc">Cover, ringkasan eksekutif, pipeline pembersihan &amp; perbandingan</div>
+          </div>
+        </label>
+        <label class="rpt-check-item">
+          <input type="checkbox" value="detailed" checked>
+          <div>
+            <div class="rpt-check-label" data-i18n="rpt_detailed_label">Laporan Detail</div>
+            <div class="rpt-check-desc" data-i18n="rpt_detailed_desc">Kesehatan kolom, statistik numerik &amp; kategorikal, visualisasi grafik</div>
+          </div>
+        </label>
+        <label class="rpt-check-item">
+          <input type="checkbox" value="correlation" checked>
+          <div>
+            <div class="rpt-check-label" data-i18n="rpt_correlation_label">Korelasi</div>
+            <div class="rpt-check-desc" data-i18n="rpt_correlation_desc">Matriks korelasi Pearson dan heatmap</div>
+          </div>
+        </label>
+        <label class="rpt-check-item">
+          <input type="checkbox" value="action" checked>
+          <div>
+            <div class="rpt-check-label" data-i18n="rpt_action_label">Rekomendasi</div>
+            <div class="rpt-check-desc" data-i18n="rpt_action_desc">Temuan kunci (insights) &amp; rekomendasi strategis</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="rpt-preview-box" id="rpt-preview-box">
+        <div class="rpt-preview-title" data-i18n="rpt_preview_title">Ringkasan Laporan</div>
+        <div class="rpt-preview-content" id="rpt-preview-content"></div>
+      </div>
+
+      <div class="rpt-actions">
+        <button id="rpt-btn-preview" class="btn btn-secondary" onclick="rptGeneratePreview()">
+          <i class="fas fa-eye"></i> <span data-i18n="rpt_generate_preview">Preview</span>
+        </button>
+        <button id="rpt-btn-download" class="btn btn-primary" onclick="rptDownloadReport()">
+          <i class="fas fa-download"></i> <span data-i18n="rpt_download_pdf">Download PDF</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+<div id="rpt-spinner-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(4,11,24,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="text-align:center;">
+    <div style="width:48px;height:48px;margin:0 auto;border:4px solid rgba(133,183,235,0.15);border-top-color:#378ADD;border-radius:50%;animation:rpt-spin .8s linear infinite;"></div>
+    <p style="color:#cde4f8;font-weight:600;margin-top:16px;font-size:0.95rem;" id="rpt-spinner-text" data-i18n="rpt_spinner_text">Menyiapkan laporan PDF... Mohon tunggu.</p>
+  </div>
+</div>
+
+<script>
+var RPT_FILENAME = {{ filename | tojson }};
+var RPT_BASE = '/dashboard/' + RPT_FILENAME + '/report';
+
+(function() {
+  if (typeof showToast !== 'function') {
+    window.showToast = function(msg, type) {
+      var c = type === 'error' ? '#ff3b30' : type === 'warning' ? '#ff9500' : '#34c759';
+      var old = document.getElementById('rpt-toast-fallback');
+      if (old) old.remove();
+      var t = document.createElement('div');
+      t.id = 'rpt-toast-fallback';
+      t.style.cssText = 'position:fixed;bottom:28px;right:28px;z-index:9999;padding:14px 22px;border-radius:10px;background:' + c + ';color:#fff;font-weight:700;font-size:.85rem;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:380px;transition:opacity .3s;';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() { t.style.opacity = '0'; setTimeout(function() { t.remove(); }, 350); }, 3500);
+    };
+  }
+
+  function rptInit() {
+    var btn = document.getElementById('rpt-btn-open-selector');
+    var selector = document.getElementById('rpt-pdf-selector');
+    if (btn && selector) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        selector.classList.toggle('open');
+        var icon = btn.querySelector('i');
+        if (selector.classList.contains('open')) {
+          icon.className = 'fas fa-minus-circle';
+          btn.innerHTML = '';
+          btn.appendChild(icon);
+          btn.appendChild(document.createTextNode(' ' + I18N.t('rpt_hide')));
+        } else {
+          icon.className = 'fas fa-plus-circle';
+          btn.innerHTML = '';
+          btn.appendChild(icon);
+          btn.appendChild(document.createTextNode(' ' + I18N.t('rpt_select')));
+        }
+      });
+    }
+
+    var checks = document.querySelectorAll('#rpt-pdf-selector input[type="checkbox"]');
+    checks.forEach(function(c) {
+      c.addEventListener('change', function() {
+        var previewBox = document.getElementById('rpt-preview-box');
+        if (previewBox) previewBox.classList.remove('visible');
+      });
+    });
+  }
+
+  if (document.readyState !== 'loading') {
+    rptInit();
+  } else {
+    document.addEventListener('DOMContentLoaded', rptInit);
+  }
+})();
+
+function rptGetSelectedTypes() {
+  var checks = document.querySelectorAll('#rpt-pdf-selector input[type="checkbox"]:checked');
+  return Array.from(checks).map(function(c) { return c.value; });
+}
+
+function rptGeneratePreview() {
+  var types = rptGetSelectedTypes();
+  if (types.length === 0) {
+    showToast(I18N.t('rpt_select_min'), 'warning');
+    return;
+  }
+  var btn = document.getElementById('rpt-btn-preview');
+  var downloadBtn = document.getElementById('rpt-btn-download');
+  var box = document.getElementById('rpt-preview-box');
+  var content = document.getElementById('rpt-preview-content');
+  if (btn) btn.disabled = true;
+  if (downloadBtn) downloadBtn.disabled = true;
+
+  fetch(RPT_BASE + '/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report_types: types, lang: (typeof I18N !== 'undefined' ? I18N.lang : 'id') })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) {
+      showToast(d.error || I18N.t('rpt_preview_failed'), 'error');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    var html = '<div style="margin-bottom:6px;"><strong>' + I18N.t('rpt_dataset') + '</strong> ' + d.filename + '</div>';
+    html += '<div style="margin-bottom:6px;"><strong>' + I18N.t('rpt_sections') + '</strong></div><ul style="margin:0 0 8px 18px;padding:0;">';
+    (d.sections || []).forEach(function(s) {
+      html += '<li><strong>' + s.label + '</strong> — ' + s.desc + '</li>';
+    });
+    html += '</ul>';
+    var st = d.stats || {};
+    html += '<div class="rpt-preview-stats">';
+    html += '<span>' + I18N.t('rpt_rows') + ' <strong>' + st.rows + '</strong></span>';
+    html += '<span>' + I18N.t('rpt_cols') + ' <strong>' + st.cols + '</strong></span>';
+    html += '<span>' + I18N.t('rpt_missing') + ' <strong>' + st.missing + '</strong></span>';
+    html += '<span>' + I18N.t('rpt_outliers') + ' <strong>' + st.outliers + '</strong></span>';
+    html += '<span>' + I18N.t('rpt_status') + ' <strong>' + (st.cleaned ? I18N.t('rpt_cleaned') : I18N.t('rpt_needs_cleaning')) + '</strong></span>';
+    html += '</div>';
+
+    if (box) box.classList.add('visible');
+    if (content) content.innerHTML = html;
+    if (downloadBtn) downloadBtn.disabled = false;
+    showToast(I18N.t('rpt_preview_ready'), 'success');
+  })
+  .catch(function(e) {
+    console.error('[RPT Preview]', e);
+    showToast(I18N.t('rpt_preview_error') + ' ' + e.message, 'error');
+  })
+  .finally(function() {
+    if (btn) btn.disabled = false;
+  });
+}
+
+function rptDownloadReport() {
+  var types = rptGetSelectedTypes();
+  if (types.length === 0) {
+    showToast(I18N.t('rpt_select_min'), 'warning');
+    return;
+  }
+  var btn = document.getElementById('rpt-btn-download');
+  if (btn) btn.disabled = true;
+
+  var overlay = document.getElementById('rpt-spinner-overlay');
+  var txt = document.getElementById('rpt-spinner-text');
+  if (overlay) overlay.style.display = 'flex';
+  if (txt) txt.textContent = I18N.t('rpt_spinner_text');
+
+  fetch(RPT_BASE + '/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ report_types: types, lang: (typeof I18N !== 'undefined' ? I18N.lang : 'id') })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) { throw new Error(d.error || I18N.t('rpt_generate_failed')); }
+    var a = document.createElement('a');
+    a.href = d.download_url;
+    a.download = d.download_name || RPT_FILENAME.replace(/\.[^.]+$/, '') + '_report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast(I18N.t('rpt_download_success'), 'success');
+  })
+  .catch(function(e) {
+    if (btn) btn.disabled = false;
+    console.error('[RPT Download]', e);
+    showToast(I18N.t('rpt_download_error') + ' ' + e.message, 'error');
+  })
+  .finally(function() {
+    if (overlay) overlay.style.display = 'none';
+    if (btn) btn.disabled = false;
+  });
+}
+</script>
+
+{% else %}
+  <div class="rpt-empty">
+    <i class="fas fa-file-export"></i>
+    <h3 data-i18n="rpt_no_dataset">No Dataset Selected</h3>
+    <p data-i18n="rpt_no_dataset_desc">Upload a dataset first to generate reports. Once uploaded, you can download PDF reports, HTML dashboards, Excel files, and CSV exports from this page.</p>
+    <a href="{{ url_for('upload_file') }}" class="btn-primary">
+      <i class="fas fa-cloud-upload-alt"></i> <span data-i18n="nav_upload">Upload Data</span>
+    </a>
+  </div>
+{% endif %}

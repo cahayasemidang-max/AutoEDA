@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.db
+backend/data/ai_settings.json
+backend/data/users.json
+uploads/*
+!uploads/.gitkeep
+frontend/static/uploads/avatars/*
+!frontend/static/uploads/avatars/.gitkeep

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="landing_page_title">DS Generator — Auto-EDA Dashboard | Kelompok 2 ITSB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+
+</head>
+<body>
+
+  <!-- ═══ THREE.JS CANVAS ═══ -->
+  <canvas id="three-canvas"></canvas>
+  <div id="three-overlay"></div>
+
+  <!-- ═══ NAVBAR ═══ -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="{{ url_for('landing') }}" class="nav-brand">
+        <div class="nav-logo">
+          <i class="fas fa-chart-simple"></i>
+        </div>
+        <div class="nav-brand-text">
+          <h1 data-i18n="nav_brand_title">DS Generator</h1>
+          <span data-i18n="nav_brand_subtitle">Auto-EDA Dashboard</span>
+        </div>
+      </a>
+      <div class="nav-links" id="nav-links">
+        <a href="#features" class="nav-link" data-i18n="nav_features">Fitur</a>
+        <a href="#members" class="nav-link" data-i18n="nav_team">Anggota Tim</a>
+      </div>
+      <a href="{{ url_for('auth.register') }}" class="nav-cta">
+        <span data-i18n="nav_getstarted">Mulai Sekarang</span> <i class="fas fa-arrow-right"></i>
+      </a>
+      <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero" id="hero">
+    <div class="hero-content">
+      <span class="hero-badge" data-delay="0">
+        <i class="fas fa-chart-simple"></i> <span data-i18n="hero_badge_text">PROYEK UAS PEMROGRAMAN SAINS DATA 2026</span>
+      </span>
+      <h1 class="hero-title" data-delay="100">
+        <span data-i18n="hero_title_1">Analisis data</span><br>
+        <span data-i18n="hero_sub_line2">otomatis dengan</span><br>
+        <span class="hero-title-gradient" data-i18n="hero_title_2">Auto-EDA futuristik.</span>
+      </h1>
+      <p class="hero-sub" data-delay="250" data-i18n="hero_sub">
+        Upload dataset Anda dan dapatkan statistik deskriptif, visualisasi interaktif, 
+        serta insight cerdas secara otomatis dalam hitungan detik.
+      </p>
+      <div class="hero-btns" data-delay="400">
+        <a href="{{ url_for('auth.register') }}" class="btn-primary">
+          <span data-i18n="hero_cta">Mulai Analisis</span> <i class="fas fa-arrow-right"></i>
+        </a>
+        <a href="#features" class="btn-secondary">
+          <i class="fas fa-book-open"></i> <span data-i18n="hero_learn">Lihat Tutorial</span>
+        </a>
+      </div>
+      <div class="hero-stats" data-delay="550">
+        <div class="hero-stat">
+          <span class="hero-stat-value" data-i18n="hero_stat_multi_format">Multi-Format</span>
+          <span class="hero-stat-label" data-i18n="hero_stat_multi_format_desc">CSV, Excel, TXT</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" data-i18n="hero_stat_auto_eda">Auto-EDA</span>
+          <span class="hero-stat-label" data-i18n="hero_stat_auto_eda_desc">Automatic Analysis</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" data-i18n="hero_stat_15plus">15+</span>
+          <span class="hero-stat-label" data-i18n="hero_stat_chart_count_desc">Chart Types</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll-indicator">
+      <span data-i18n="hero_scroll">Gulir</span>
+      <i class="fas fa-chevron-down"></i>
+    </div>
+
+    <!-- Scene Indicator -->
+    <div class="scene-indicator" id="scene-indicator">
+      <span class="scene-label" data-i18n="scene_label">Visualisasi</span>
+      <div class="scene-dots">
+        <button class="scene-dot active" data-index="0" aria-label="Bar Chart 3D"></button>
+        <button class="scene-dot" data-index="1" aria-label="Scatter Plot 3D"></button>
+        <button class="scene-dot" data-index="2" aria-label="Wave Chart 3D"></button>
+        <button class="scene-dot" data-index="3" aria-label="Heatmap Grid 3D"></button>
+        <button class="scene-dot" data-index="4" aria-label="Neural Network 3D"></button>
+      </div>
+      <span class="scene-name" id="scene-name" data-i18n="scene_name_default">Bar Chart 3D</span>
+    </div>
+  </section>
+
+  <!-- ═══ FEATURES ═══ -->
+  <section class="section" id="features">
+    <div class="section-header reveal">
+      <span class="section-label" data-i18n="features_label">Fitur Unggulan</span>
+      <h2 class="section-title"><span data-i18n="features_title_prefix">Powerful</span> <span class="gradient-text" data-i18n="features_title_highlight">Data Analysis</span> <span data-i18n="features_title_suffix">Tools</span></h2>
+      <p class="section-sub" data-i18n="features_sub">Semua yang Anda butuhkan untuk eksplorasi dan analisis data dalam satu platform futuristik.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal reveal-d1">
+        <div class="feature-icon" style="--fc:var(--accent-blue);">
+          <i class="fas fa-folder-open"></i>
+        </div>
+        <h3 data-i18n="feat_upload_title">Multi-format Upload</h3>
+        <p data-i18n="feat_upload_desc">Upload dataset dalam format CSV, Excel (XLSX), atau TXT.</p>
+      </div>
+      <div class="feature-card reveal reveal-d1">
+        <div class="feature-icon" style="--fc:var(--accent-cyan);">
+          <i class="fas fa-robot"></i>
+        </div>
+        <h3 data-i18n="feat_clean_title">Auto Deteksi Tipe Data</h3>
+        <p data-i18n="feat_clean_desc">Deteksi otomatis tipe data: Numeric, Categorical, Datetime, dan Text.</p>
+      </div>
+      <div class="feature-card reveal reveal-d2">
+        <div class="feature-icon" style="--fc:var(--accent-blue);">
+          <i class="fas fa-calculator"></i>
+        </div>
+        <h3 data-i18n="feat_stats_title">Statistik Deskriptif Otomatis</h3>
+        <p data-i18n="feat_stats_desc">Mean, Median, Std, Quartile, dan metrik statistik lainnya dihitung secara instan.</p>
+      </div>
+      <div class="feature-card reveal reveal-d2">
+        <div class="feature-icon" style="--fc:var(--accent-cyan);">
+          <i class="fas fa-table"></i>
+        </div>
+        <h3 data-i18n="feat_viz_title">Smart Preview</h3>
+        <p data-i18n="feat_viz_desc">Data Explorer interaktif dengan preview tabel, sorting, dan filtering.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ TUTORIAL ═══ -->
+  <section class="section section-tutorial" id="tutorial">
+    <div class="section-header reveal">
+      <span class="section-label" data-i18n="workflow_label">Cara Penggunaan</span>
+      <h2 class="section-title"><span data-i18n="workflow_title">Mulai dalam</span> <span class="gradient-text" data-i18n="workflow_steps_highlight">3 Langkah</span> <span data-i18n="workflow_sub_short">Mudah</span></h2>
+      <p class="section-sub" data-i18n="workflow_sub">Dari dataset mentah hingga insight berharga dalam hitungan menit.</p>
+    </div>
+    <div class="tutorial-timeline">
+      <div class="tutorial-step reveal reveal-d1">
+        <div class="tutorial-step-num">
+          <span data-i18n="step1_number">01</span>
+          <div class="tutorial-connector"></div>
+        </div>
+        <div class="tutorial-step-content">
+          <div class="tutorial-step-icon">
+            <i class="fas fa-cloud-upload-alt"></i>
+          </div>
+          <h3 data-i18n="step1_title">Upload Dataset Kamu</h3>
+          <p data-i18n="step1_desc">Unggah file CSV, Excel, atau TXT. Sistem akan otomatis membaca, mendeteksi tipe data, dan menyiapkan dataset untuk analisis.</p>
+        </div>
+      </div>
+      <div class="tutorial-step reveal reveal-d2">
+        <div class="tutorial-step-num">
+          <span data-i18n="step2_number">02</span>
+          <div class="tutorial-connector"></div>
+        </div>
+        <div class="tutorial-step-content">
+          <div class="tutorial-step-icon">
+            <i class="fas fa-microchip"></i>
+          </div>
+          <h3 data-i18n="step2_title">Sistem Analisis Otomatis</h3>
+          <p data-i18n="step2_desc">Auto-EDA engine akan menghitung statistik deskriptif, mendeteksi pola, dan menghasilkan visualisasi interaktif secara otomatis.</p>
+        </div>
+      </div>
+      <div class="tutorial-step reveal reveal-d3">
+        <div class="tutorial-step-num">
+          <span data-i18n="step3_number">03</span>
+        </div>
+        <div class="tutorial-step-content">
+          <div class="tutorial-step-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h3 data-i18n="step3_title">Eksplorasi Insight &amp; Statistik</h3>
+          <p data-i18n="step3_desc">Jelajahi hasil analisis melalui dashboard interaktif, export laporan PDF, atau unduh dataset yang sudah dibersihkan.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PROJECT MEMBERS ═══ -->
+  <section class="section" id="members">
+    <div class="section-header reveal">
+      <span class="section-label" data-i18n="team_label">Tim Data Sains</span>
+      <h2 class="section-title"><span data-i18n="team_title_prefix">Kelompok</span> <span class="gradient-text" data-i18n="team_title_group_number">2</span> <span data-i18n="team_title_suffix">— ITSB</span></h2>
+      <p class="section-sub" data-i18n="team_subtitle">Data Science Programming — Final Project 2026</p>
+    </div>
+    <div class="members-grid">
+      <div class="member-card reveal reveal-d1">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/caroldupinopereira-cmyk/carol/main/carol_1-removebg-preview.png"
+               alt="Carol" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Carol+Dupino+Pereira&background=2563eb&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member1_name">Carol Dupino Pereira</h3>
+        <span class="member-nim">52250051</span>
+        <span class="member-role" data-i18n="team_member1_role">Machine Learning</span>
+        <div class="member-links">
+          <a href="https://github.com/caroldupinopereira-cmyk" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/Dupino" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+      <div class="member-card reveal reveal-d1">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/adindaadeliafutri6-gif/refan/main/Foto_refan-removebg-preview.png"
+               alt="Refantanur" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Refantanur+Husnul+H&background=06b6d4&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member2_name">Refantanur Husnul H.</h3>
+        <span class="member-nim">52250052</span>
+        <span class="member-role" data-i18n="team_member2_role">Data Analyst</span>
+        <div class="member-links">
+          <a href="https://github.com/refantanjung23-wq" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/Refantanur" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+      <div class="member-card reveal reveal-d2">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/cahayasemidang-max/foto/cfc8d91ef344fb1beba4eadb93e4be67168bc2b8/FotoCahaya.png"
+               alt="Cahaya" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Cahaya+Medina+Semidang&background=2563eb&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member3_name">Cahaya Medina Semidang</h3>
+        <span class="member-nim">52250053</span>
+        <span class="member-role" data-i18n="team_member3_role">Data Engineer</span>
+        <div class="member-links">
+          <a href="https://github.com/cahayasemidang-max" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/cahayaa23" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+      <div class="member-card reveal reveal-d2">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/raihaniasyahputri/Foto_lulu/696dc3e134536210f870e9d5230b8fbeaad40e0d/IMG-20251129-WA0001.png"
+               alt="Raihania" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Raihania+Syah+Putri&background=06b6d4&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member4_name">Raihania Syah Putri</h3>
+        <span class="member-nim">52250054</span>
+        <span class="member-role" data-i18n="team_member4_role">Data Scientist</span>
+        <div class="member-links">
+          <a href="https://github.com/raihaniasyahputri" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/raihania496" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+      <div class="member-card reveal reveal-d3">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/cahayasemidang-max/foto/b7534990c32ff093c6cb2faefc6282f5f6079296/FotoCloise.png"
+               alt="Cloise" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Cloise+Shafira&background=2563eb&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member5_name">Cloise Shafira</h3>
+        <span class="member-nim">52250044</span>
+        <span class="member-role" data-i18n="team_member5_role">UI/UX Designer</span>
+        <div class="member-links">
+          <a href="https://github.com/xcoliyyyzz1/cloi" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/coliyyzzz1" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+      <div class="member-card reveal reveal-d3">
+        <div class="member-avatar-wrap">
+          <img src="https://raw.githubusercontent.com/caroldupinopereira-cmyk/adinda/main/adinda_baru-removebg-preview.png"
+               alt="Adinda" class="member-avatar"
+               onerror="this.src='https://ui-avatars.com/api/?name=Adinda+Adelia+Futri&background=06b6d4&color=fff&size=120'">
+        </div>
+        <h3 class="member-name" data-i18n="team_member6_name">Adinda Adelia Futri</h3>
+        <span class="member-nim">52250055</span>
+        <span class="member-role" data-i18n="team_member6_role">Project Manager</span>
+        <div class="member-links">
+          <a href="https://github.com/adindaadeliafutri6-gif" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://rpubs.com/futri0055" target="_blank" aria-label="RPubs"><i class="fas fa-chart-bar"></i></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <i class="fas fa-chart-simple"></i>
+        </div>
+        <div class="footer-brand-text">
+          <h3 data-i18n="nav_brand_title">DS Generator</h3>
+          <span data-i18n="nav_brand_subtitle">Auto-EDA Dashboard</span>
+        </div>
+      </div>
+      <div class="footer-links">
+        <a href="#features" data-i18n="footer_features">Fitur</a>
+        <a href="#tutorial" data-i18n="footer_tutorial">Tutorial</a>
+        <a href="#members" data-i18n="footer_members">Anggota</a>
+        <a href="{{ url_for('auth.register') }}" data-i18n="footer_dashboard">Beranda</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p data-i18n="footer_text">&copy; 2026 DS Generator — Kelompok 2. Institut Teknologi Sains Bandung (ITSB). All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ═══ THREE.JS ═══ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+  <script>
+    I18N.init();
+  </script>
+</body>
+</html>

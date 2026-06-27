@@ -17,16 +17,70 @@ FIX (bdata prevention):
 """
 
 import json
+import os
+import threading
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
 from plotly.subplots import make_subplots
 from scipy import stats as scipy_stats
 from backend.data_sanitizer import sanitize_series, filter_numeric_cols
 
+# ─── Thread-local theme controller ───────────────────────────────────────────
+_thread_local = threading.local()
+
+
+def set_theme(theme):
+    _thread_local.theme = theme
+
+
+def get_theme():
+    return getattr(_thread_local, 'theme', 'dark')
+
+
+THEME_CONFIG = {
+    'dark': {
+        'template'        : 'plotly_dark',
+        'paper_bgcolor'   : '#111A40',
+        'plot_bgcolor'    : '#172254',
+        'font_color'      : '#C8D8F0',
+        'grid_color'      : 'rgba(255,255,255,0.06)',
+        'zerolinecolor'   : 'rgba(255,255,255,0.12)',
+        'axis_line'       : 'rgba(255,255,255,0.12)',
+        'hover_bg'        : 'rgba(17,26,64,0.95)',
+        'hover_border'    : 'rgba(126,169,255,0.4)',
+        'hover_font'      : '#E8F0FF',
+        'legend_bg'       : 'rgba(17,26,64,0.6)',
+        'legend_border'   : 'rgba(255,255,255,0.08)',
+        'annot_font_color': '#E8F0FF',
+    },
+    'light': {
+        'template'        : 'plotly_white',
+        'paper_bgcolor'   : '#FFFFFF',
+        'plot_bgcolor'    : '#FFFFFF',
+        'font_color'      : '#1F2937',
+        'grid_color'      : '#E5E7EB',
+        'zerolinecolor'   : '#9CA3AF',
+        'axis_line'       : '#E5E7EB',
+        'hover_bg'        : 'rgba(255,255,255,0.95)',
+        'hover_border'    : 'rgba(0,0,0,0.12)',
+        'hover_font'      : '#1F2937',
+        'legend_bg'       : 'rgba(255,255,255,0.8)',
+        'legend_border'   : 'rgba(0,0,0,0.08)',
+        'annot_font_color': '#1F2937',
+    },
+}
+
+
+def _cfg():
+    return THEME_CONFIG[get_theme()]
+
+
 # ─── High Visual Dark Palette ────────────────────────────────────────────────
 PALETTE = ['#4ECDC4', '#7EA9FF', '#A8E6CF', '#C9B8FF', '#88D4E8', '#F4A9C8']
+# Kept for backward compat — new code reads from _cfg()
 BG_CONTAINER = '#111A40'
 PLOT_BG      = '#172254'
 GRID         = 'rgba(255,255,255,0.06)'
@@ -35,11 +89,12 @@ FONT_COLOR   = '#C8D8F0'
 
 # ─── All category→chart-type lists (SINGLE SOURCE OF TRUTH) ──────────────────
 CATEGORY_CHARTS = {
-    'numerical'  : ['histogram', 'boxplot', 'density', 'qq', 'violin'],
-    'categorical': ['bar', 'pie', 'count', 'pareto'],
-    'bivariate'  : ['scatter', 'heatmap', 'scatter_matrix', 'regression_plot', 'bubble_chart'],
-    'catnum'     : ['box_cat_num', 'violin_cat_num', 'grouped_bar', 'strip_plot'],
-    'compare'    : ['violin_compare', 'grouped_bar_compare', 'parallel_coords'],
+    'numerical'   : ['histogram', 'boxplot', 'density', 'qq', 'violin'],
+    'categorical' : ['bar', 'pie', 'count', 'pareto'],
+    'bivariate'   : ['scatter', 'heatmap', 'scatter_matrix', 'regression_plot', 'bubble_chart', 'line'],
+    'catnum'      : ['box_cat_num', 'violin_cat_num', 'grouped_bar', 'strip_plot'],
+    'compare'     : ['violin_compare', 'grouped_bar_compare', 'parallel_coords'],
+    'heatmap_all' : ['heatmap_all'],
 }
 
 CHART_LABELS = {
@@ -64,6 +119,8 @@ CHART_LABELS = {
     'violin_compare'      : 'Violin Comparison',
     'grouped_bar_compare' : 'Mean ± Std Comparison',
     'parallel_coords'     : 'Parallel Coordinates',
+    'heatmap_all'         : 'Heatmap Semua Variabel',
+    'line'                : 'Line Chart — Time Series',
 }
 
 PLACEHOLDERS = {
@@ -72,6 +129,7 @@ PLACEHOLDERS = {
     'bivariate'  : 'Gunakan dataset dengan minimal 2 kolom numerik untuk mengaktifkan halaman ini.',
     'catnum'     : 'Gunakan dataset dengan kolom numerik dan kategorik untuk mengaktifkan halaman ini.',
     'compare'    : 'Gunakan dataset dengan minimal 2 kolom numerik untuk perbandingan.',
+    'heatmap_all': 'Gunakan dataset dengan minimal 2 kolom untuk heatmap semua variabel.',
 }
 
 
@@ -84,26 +142,29 @@ def category_available(category, num_cols, cat_cols):
         'catnum'     : n >= 1 and c >= 1,
         'compare'    : n >= 2,
     }
+    checks['heatmap_all'] = n + c >= 2
     return checks.get(category, False)
 
 
 # ─── Layout helpers ───────────────────────────────────────────────────────────
 
 def _layout(**extra):
+    c = _cfg()
     base = dict(
-        paper_bgcolor = BG_CONTAINER,
-        plot_bgcolor  = PLOT_BG,
-        font          = dict(color=FONT_COLOR, family='Inter, sans-serif', size=12),
-        margin        = dict(l=52, r=28, t=56, b=56),
+        template      = c['template'],
+        paper_bgcolor = c['paper_bgcolor'],
+        plot_bgcolor  = c['plot_bgcolor'],
+        font          = dict(color=c['font_color'], family='Inter, sans-serif', size=12),
+        margin        = dict(l=50, r=30, t=50, b=50),
         hoverlabel    = dict(
-            bgcolor     = 'rgba(17,26,64,0.95)',
-            bordercolor = 'rgba(126,169,255,0.4)',
-            font        = dict(color='#E8F0FF', size=12),
+            bgcolor     = c['hover_bg'],
+            bordercolor = c['hover_border'],
+            font        = dict(color=c['hover_font'], size=12),
         ),
         legend = dict(
-            bgcolor     = 'rgba(17,26,64,0.6)',
-            bordercolor = 'rgba(255,255,255,0.08)',
-            font        = dict(color=FONT_COLOR, size=11),
+            bgcolor     = c['legend_bg'],
+            bordercolor = c['legend_border'],
+            font        = dict(color=c['font_color'], size=11),
         ),
     )
     base.update(extra)
@@ -111,20 +172,36 @@ def _layout(**extra):
 
 
 def _axes(fig):
+    c = _cfg()
     style = dict(
-        gridcolor     = GRID,
-        zerolinecolor = GRID,
-        linecolor     = AXIS_LINE,
-        tickfont      = dict(color=FONT_COLOR, size=10),
-        title_font    = dict(color=FONT_COLOR, size=11),
+        gridcolor     = c['grid_color'],
+        zerolinecolor = c['zerolinecolor'],
+        linecolor     = c['axis_line'],
+        tickfont      = dict(color=c['font_color'], size=12),
+        title_font    = dict(color=c['font_color'], size=12),
     )
     fig.update_xaxes(**style)
     fig.update_yaxes(**style)
     return fig
 
 
+def decode_typed_arrays(obj):
+    """Recursively convert Plotly typed arrays ({bdata, dtype}) to plain lists."""
+    import base64
+    if isinstance(obj, dict):
+        if 'bdata' in obj and 'dtype' in obj:
+            bdata = base64.b64decode(obj['bdata'])
+            dtype_map = {'i1':'i1','i2':'i2','i4':'i4','i8':'i8',
+                         'u1':'u1','u2':'u2','u4':'u4','u8':'u8','f4':'f4','f8':'f8'}
+            dt = dtype_map.get(obj['dtype'], 'f8')
+            return [float(x) for x in np.frombuffer(bdata, dtype=np.dtype(dt))]
+        return {k: decode_typed_arrays(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [decode_typed_arrays(i) for i in obj]
+    return obj
+
 def _json(fig):
-    return json.loads(fig.to_json())
+    return decode_typed_arrays(json.loads(fig.to_json()))
 
 
 def _to_list(arr):
@@ -345,7 +422,7 @@ def _chart_pie(df, col):
         values=vc.values.tolist(),     # FIX: .tolist()
         hole=0.45,
         marker_colors=PALETTE,
-        textfont=dict(color=FONT_COLOR),
+        textfont=dict(color=_cfg()['font_color']),
         hovertemplate='%{label}<br>Count: %{value:,}<br>%{percent}<extra></extra>',
     ))
     fig.update_layout(_layout(title=f' {CHART_LABELS["pie"]}: {col}'))
@@ -431,20 +508,80 @@ def _chart_heatmap(df, num_cols):
                      for v in row] for row in corr.values.tolist()]
         col_list = corr.columns.tolist()
 
+        c        = _cfg()
+        is_dark  = get_theme() == 'dark'
+        clr_low  = c['plot_bgcolor'] if is_dark else '#F3F4F6'
         fig = go.Figure(go.Heatmap(
             z=z_values,
             x=col_list,
             y=col_list,
-            colorscale=[[0, PLOT_BG], [0.5, PALETTE[1]], [1, PALETTE[0]]],
+            colorscale=[[0, clr_low], [0.5, PALETTE[1]], [1, PALETTE[0]]],
             zmid=0,
             text=z_text,
             texttemplate='%{text}',
+            textfont=dict(color=c['annot_font_color'], size=11),
             hovertemplate='%{x} × %{y}<br>r = %{z:.3f}<extra></extra>',
         ))
         fig.update_layout(_layout(title=f' {CHART_LABELS["heatmap"]}'))
         return _json(fig)
     except Exception as exc:
         print(f"[viz_engine] heatmap error: {exc}")
+        return None
+
+
+def _chart_heatmap_all(df):
+    """
+    Correlation heatmap menggunakan SEMUA kolom:
+    - Kolom numerik langsung diambil
+    - Kolom kategorikal dengan ≤10 unique value di-label-encode via pd.factorize
+    """
+    try:
+        encoded_parts = []
+
+        numeric_df = df.select_dtypes(include=['number'])
+        if not numeric_df.empty:
+            encoded_parts.append(numeric_df)
+
+        cat_df = df.select_dtypes(include=['object', 'category'])
+        for col in cat_df.columns:
+            if cat_df[col].nunique() <= 10 and cat_df[col].nunique() > 1:
+                codes, _ = pd.factorize(cat_df[col].astype(str))
+                encoded_parts.append(pd.DataFrame({col: codes}, index=df.index))
+
+        if len(encoded_parts) < 2:
+            return None
+
+        combined = pd.concat(encoded_parts, axis=1)
+        if combined.shape[1] < 2:
+            return None
+
+        corr = combined.corr(numeric_only=False)
+        z_values = corr.values.tolist()
+        z_text = [[f'{v:.2f}' if not (isinstance(v, float) and (v != v)) else 'N/A'
+                   for v in row] for row in corr.values.tolist()]
+        col_list = corr.columns.tolist()
+
+        c = _cfg()
+        is_dark = get_theme() == 'dark'
+        clr_low = c['plot_bgcolor'] if is_dark else '#F3F4F6'
+        fig = go.Figure(go.Heatmap(
+            z=z_values,
+            x=col_list,
+            y=col_list,
+            colorscale=[[0, clr_low], [0.5, PALETTE[1]], [1, PALETTE[0]]],
+            zmid=0,
+            text=z_text,
+            texttemplate='%{text}',
+            textfont=dict(color=c['annot_font_color'], size=9),
+            hovertemplate='%{x} × %{y}<br>r = %{z:.3f}<extra></extra>',
+        ))
+        fig.update_layout(
+            _layout(title=f' {CHART_LABELS["heatmap_all"]}'),
+        )
+        fig.update_xaxes(tickangle=45)
+        return _json(fig)
+    except Exception as exc:
+        print(f"[viz_engine] heatmap_all error: {exc}")
         return None
 
 
@@ -662,7 +799,7 @@ def _chart_parallel_coords(df, num_cols):
             color=color_vals,
             colorscale=[[0, PALETTE[0]], [0.5, PALETTE[4]], [1, PALETTE[3]]],
             showscale=True,
-            colorbar=dict(title='Index', thickness=12, tickfont=dict(color=FONT_COLOR, size=9)),
+            colorbar=dict(title='Index', thickness=12, tickfont=dict(color=_cfg()['font_color'], size=9)),
         ),
         dimensions=dims,
         unselected=dict(line=dict(opacity=0.15)),
@@ -828,10 +965,691 @@ def _chart_all_categorical(df, cat_cols, chart_type):
     return _json(_axes(fig))
 
 
+# ─── Time-Series Line Chart ──────────────────────────────────────────────────
+
+def _resample_time_series(series, max_points=200):
+    """
+    Resampling otomatis untuk time-series agar line chart tetap bersih.
+    - <50 points: return as-is
+    - 50–500: resample per week (W)
+    - 500–5000: resample per month (M)
+    - >5000: resample per quarter (Q)
+    Returns: (resampled_series, freq_label)
+    """
+    s = series.dropna()
+    if len(s) == 0:
+        return s, ''
+
+    n = len(s)
+    if n <= max_points:
+        return s, f'{n} points'
+
+    try:
+        s_idx = s.copy()
+        if not isinstance(s_idx.index, pd.DatetimeIndex):
+            s_idx.index = pd.to_datetime(s_idx.index, errors='coerce')
+            s_idx = s_idx[s_idx.index.notna()]
+
+        if len(s_idx) > 5000:
+            rule, label = 'QE', 'quarterly'
+        elif len(s_idx) > 500:
+            rule, label = 'ME', 'monthly'
+        else:
+            rule, label = 'W', 'weekly'
+
+        resampled = s_idx.resample(rule).mean()
+        return resampled, label
+    except Exception:
+        return s, f'{n} points (no resample)'
+
+
+def _chart_line(df, col_x, col_y=None):
+    """
+    Line chart untuk time-series.
+    col_x: column datetime
+    col_y: column numerik (opsional; default = count per tanggal)
+    """
+    if col_x not in df.columns:
+        return None
+
+    ts_df = df[[col_x]].copy()
+    ts_df.columns = ['x']
+    ts_df = ts_df.dropna(subset=['x'])
+    ts_df['x'] = pd.to_datetime(ts_df['x'], errors='coerce')
+    ts_df = ts_df.dropna(subset=['x'])
+    if ts_df.empty:
+        return None
+
+    if col_y and col_y in df.columns:
+        ts_df['y'] = df.loc[ts_df.index, col_y].astype(float)
+    else:
+        ts_df['y'] = 1.0
+
+    ts_df = ts_df.set_index('x')
+
+    # Resample jika perlu
+    n_unique = ts_df.index.nunique()
+    if n_unique > 50:
+        rule = 'ME' if n_unique > 500 else 'W'
+        try:
+            if col_y and col_y in df.columns:
+                ts_df = ts_df.resample(rule).mean().dropna()
+            else:
+                ts_df = ts_df.resample(rule).size().to_frame('y')
+        except Exception:
+            pass
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=_to_list(ts_df.index),
+        y=_to_list(ts_df['y']),
+        mode='lines',
+        fill='tozeroy',
+        fillcolor='rgba(78,205,196,0.12)',
+        line=dict(color=PALETTE[0], width=2),
+        hovertemplate='%{x}<br>%{y:,.2f}<extra></extra>',
+    ))
+    feq_label = {'ME': 'monthly', 'W': 'weekly'}.get(rule, '')
+    title = f'Time Series — {col_x}'
+    if col_y:
+        title += f' / {col_y}'
+    if feq_label:
+        title += f' ({feq_label})'
+    fig.update_layout(_layout(title=title))
+    return _json(_axes(fig))
+
+
+# ─── Smart Visualization Router ──────────────────────────────────────────────
+
+def get_plot(df, col, time_series_cols=None, is_numeric=False):
+    """
+    Routing cerdas untuk menentukan jenis visualisasi berdasarkan tipe kolom.
+
+    Rules:
+      - TIME_SERIES (jika col ada di time_series_cols):
+          Gunakan Line Chart. Resample otomatis jika >50 unique.
+      - Bukan TIME_SERIES & nunique <= 10:
+          Bar Chart (atau Pie Chart jika diminta).
+      - Bukan TIME_SERIES & nunique > 10 & is_numeric:
+          Histogram.
+      - Bukan TIME_SERIES & nunique > 10 & not is_numeric:
+          Bar Chart dengan top 10 kategori.
+
+    Args:
+        df: DataFrame
+        col: Nama kolom
+        time_series_cols: List kolom time-series (optional)
+        is_numeric: True jika kolom numerik (optional, auto-detect if None)
+
+    Returns:
+        dict chart JSON atau None
+    """
+    if col not in df.columns:
+        return None
+
+    ts_set = set(time_series_cols or [])
+    series = df[col]
+
+    if is_numeric is None:
+        is_numeric = pd.api.types.is_numeric_dtype(series)
+
+    n_unique = series.nunique()
+
+    # 1. TIME_SERIES → Line Chart (fallback ke Histogram/Bars jika gagal)
+    if col in ts_set:
+        result = _chart_line(df, col)
+        if result is not None:
+            return result
+        # Fallthrough ke logic di bawah
+
+    # 2. Low cardinality → Bar Chart
+    if n_unique <= 10:
+        return _chart_bar(df, col)
+
+    # 3. High cardinality numeric → Histogram
+    if is_numeric:
+        return _chart_histogram(df, col)
+
+    # 4. High cardinality categorical → Bar Chart (top 10)
+    vc = series.value_counts().head(10)
+    fig = go.Figure(go.Bar(
+        x=vc.index.astype(str).tolist(),
+        y=vc.values.tolist(),
+        marker_color=PALETTE[0],
+        opacity=0.9,
+        hovertemplate='%{x}<br>Count: %{y:,}<extra></extra>',
+    ))
+    fig.update_layout(_layout(
+        title=f' Top 10 Categories — {col}',
+        xaxis_title=col,
+        yaxis_title='Count',
+    ))
+    return _json(_axes(fig))
+
+
+# ─── PNG Export Helper ───────────────────────────────────────────────────────
+
+def save_figure(fig_or_json, save_path, width=700, height=400, scale=2):
+    """
+    Convert a Plotly figure (or JSON dict) to a PNG image and save to disk.
+    Used by both dashboard and PDF to ensure identical chart rendering.
+    """
+    if isinstance(fig_or_json, dict):
+        fig = pio.from_json(json.dumps(fig_or_json), skip_invalid=True)
+    else:
+        fig = fig_or_json
+    fig.update_layout(
+        width=width, height=height,
+        margin=dict(l=60, r=30, t=50, b=50),
+        font=dict(size=10),
+    )
+    fig.update_xaxes(title_font=dict(size=11), tickfont=dict(size=9))
+    fig.update_yaxes(title_font=dict(size=11), tickfont=dict(size=9))
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    pio.write_image(fig, save_path, format='png', scale=scale)
+    return save_path
+
+
+# ─── Unified Single-Column Plot Generator ────────────────────────────────────
+
+def generate_plot(df, column, chart_type='auto', num_cols=None, cat_cols=None,
+                  save_path=None, theme='light', width=700, height=400):
+    """
+    Generate a Plotly chart for a single column, auto-detecting chart type.
+    Both dashboard and PDF use this function for consistent output.
+
+    Parameters:
+        df         : DataFrame (must be the cleaned version)
+        column     : Column name to plot
+        chart_type : 'auto' | 'histogram' | 'boxplot' | 'bar' | 'pie' | 'line'
+        num_cols   : List of numeric column names (auto-detected if None)
+        cat_cols   : List of categorical column names (auto-detected if None)
+        save_path  : If provided, save PNG to this path
+        theme      : 'light' (PDF) or 'dark' (dashboard)
+        width,height : Figure dimensions in pixels
+
+    Returns:
+        Plotly Figure object, or None if chart cannot be generated
+    """
+    set_theme(theme)
+
+    if num_cols is None or cat_cols is None:
+        from backend.preprocessing import detect_data_types
+        num_cols, cat_cols = detect_data_types(df)
+
+    if chart_type == 'auto':
+        in_num = column in (num_cols or [])
+        in_cat = column in (cat_cols or [])
+        if in_num:
+            chart_type = 'histogram'
+        elif in_cat:
+            chart_type = 'bar'
+        else:
+            chart_type = 'histogram'
+
+    builders = {
+        'histogram': lambda: _chart_histogram(df, column),
+        'boxplot'  : lambda: _chart_boxplot(df, column),
+        'bar'      : lambda: _chart_bar(df, column),
+        'pie'      : lambda: _chart_pie(df, column),
+        'line'     : lambda: _chart_line(df, column),
+    }
+    builder = builders.get(chart_type)
+    if builder is None:
+        return None
+
+    chart_json = builder()
+    if chart_json is None:
+        return None
+
+    fig = pio.from_json(json.dumps(chart_json), skip_invalid=True)
+    fig.update_layout(width=width, height=height)
+
+    if save_path:
+        save_figure(fig, save_path)
+
+    return fig
+
+
+# ─── VIZMASTER INSIGHT GENERATOR ────────────────────────────────────────────
+
+def _generate_vizmaster_insights(chart_type, df, col_x=None, col_y=None, col_z=None, num_cols=None, cat_cols=None):
+    """
+    Generate visual insight dengan kerangka O-A-I (Observation → Analysis → Implication).
+    Setiap insight item berisi:
+      - observation:   fakta statistik yang terlihat
+      - analysis:      mengapa hal itu terjadi / hubungan kausal
+      - implication:   dampak terhadap pemodelan / keputusan
+      - text:          ringkasan singkat (backward compat)
+      - icon:          ikon FontAwesome
+    """
+    insights = []
+    try:
+        if chart_type in ('histogram', 'density') and col_x and col_x in df.columns:
+            s = df[col_x].dropna()
+            skew = s.skew()
+            mean_v = s.mean()
+            median_v = s.median()
+            std_v = s.std()
+            cv = (std_v / abs(mean_v) * 100) if mean_v != 0 else 0
+
+            # ── Shape classification ──
+            if abs(skew) < 0.5:
+                shape_label = 'simetris'
+                shape_desc = f'Distribusi {col_x} relatif simetris (skewness={skew:.3f}).'
+                model_rec = 'Distribusi simetris mendukung penggunaan model parametrik seperti regresi linier tanpa transformasi.'
+            elif skew > 0:
+                shape_label = 'menceng kanan (positif)'
+                shape_desc = f'Distribusi {col_x} menceng kanan (skewness={skew:.3f}) — mayoritas nilai rendah dengan ekor panjang ke kanan.'
+                model_rec = 'Skewness positif menyarankan transformasi log atau Box-Cox sebelum regresi linier. Tree-based models (Random Forest, XGBoost) lebih toleran terhadap distribusi ini.'
+            else:
+                shape_label = 'menceng kiri (negatif)'
+                shape_desc = f'Distribusi {col_x} menceng kiri (skewness={skew:.3f}) — mayoritas nilai tinggi dengan ekor panjang ke kiri.'
+                model_rec = 'Skewness negatif sering kali dapat diperbaiki dengan refleksi + transformasi log, atau gunakan model non-parametrik.'
+
+            insights.append({
+                'icon': 'fa-chart-bar', 'text': shape_desc,
+                'observation': shape_desc,
+                'analysis': f'Coefficient of Variation (CV)={cv:.1f}% mengindikasikan '
+                            f'{"variabilitas tinggi" if cv > 30 else "variabilitas moderat" if cv > 15 else "variabilitas rendah"}. '
+                            f'Mean ({mean_v:.2f}) vs Median ({median_v:.2f}) menunjukkan '
+                            f'{"adanya outlier atau skew" if abs(mean_v - median_v) / max(abs(mean_v), 0.001) > 0.1 else "distribusi yang relatif simetris"}.',
+                'implication': model_rec,
+            })
+
+        elif chart_type in ('boxplot', 'violin') and col_x and col_x in df.columns:
+            s = df[col_x].dropna()
+            q1, q3 = s.quantile(0.25), s.quantile(0.75)
+            iqr = q3 - q1
+            n_out = ((s < q1 - 1.5*iqr) | (s > q3 + 1.5*iqr)).sum()
+            out_pct = n_out / len(s) * 100 if len(s) > 0 else 0
+
+            obs = f'Rentang interkuartil (IQR) {col_x}: {q1:.2f} – {q3:.2f}, mencakup 50% data tengah.'
+            if n_out > 0:
+                obs += f' Terdeteksi {n_out} outlier ({out_pct:.1f}% data).'
+            else:
+                obs += ' Tidak ada outlier terdeteksi berdasarkan metode IQR.'
+
+            if out_pct > 5:
+                ana = f'Proporsi outlier ({out_pct:.1f}%) cukup tinggi. Outlier dapat merepresentasikan kesalahan pengukuran, transaksi abnormal, atau distribusi heavy-tailed. Perlu validasi domain.'
+                imp = 'Outlier pada tingkat ini dapat mengganggu regresi OLS, PCA, dan k-means. Gunakan robust scaling, winsorization, atau model berbasis tree (Random Forest, Gradient Boosting).'
+            elif out_pct > 0:
+                ana = f'Proporsi outlier ({out_pct:.1f}%) rendah. Kemungkinan merupakan variasi alami data.'
+                imp = 'Dampak minimal terhadap sebagian besar model. Namun periksa leverage points pada regresi linear.'
+            else:
+                ana = 'Data tidak memiliki nilai ekstrem yang melampaui 1.5×IQR.'
+                imp = 'Model sensitif terhadap outlier (OLS, PCA) dapat diterapkan tanpa preprocessing outlier khusus.'
+
+            insights.append({
+                'icon': 'fa-exclamation-triangle', 'text': obs,
+                'observation': obs,
+                'analysis': ana,
+                'implication': imp,
+            })
+
+        elif chart_type == 'qq' and col_x and col_x in df.columns:
+            s = df[col_x].dropna()
+            obs = 'QQ plot membandingkan kuantil data terhadap kuantil distribusi normal teoritis.'
+            if len(s) >= 8:
+                _, pval = scipy_stats.shapiro(s)
+                if pval > 0.05:
+                    obs += f' Shapiro-Wilk p={pval:.4f} > 0.05 — data {col_x} tidak menyimpang signifikan dari normal.'
+                    ana = 'Titik-titik pada QQ plot akan mengikuti garis referensi diagonal. Normalitas terpenuhi.'
+                    imp = 'Parametric tests (t-test, ANOVA, Pearson, OLS) dan model yang mengasumsikan normalitas dapat digunakan tanpa transformasi.'
+                else:
+                    obs += f' Shapiro-Wilk p={pval:.4f} ≤ 0.05 — data {col_x} menyimpang signifikan dari normal.'
+                    ana = 'Penyimpangan dari garis diagonal pada QQ plot (terutama di ujung-ujung) mengindikasikan ekor distribusi yang tidak normal.'
+                    imp = 'Gunakan non-parametric tests (Spearman, Mann-Whitney) atau transformasi data (log, Box-Cox, Yeo-Johnson). Untuk regresi, robust standard errors disarankan.'
+                insights.append({
+                    'icon': 'fa-check' if pval > 0.05 else 'fa-times', 'text': obs,
+                    'observation': obs,
+                    'analysis': ana,
+                    'implication': imp,
+                })
+            else:
+                insights.append({
+                    'icon': 'fa-chart-line', 'text': obs,
+                    'observation': obs,
+                    'analysis': 'Jumlah sampel terlalu kecil (<8) untuk uji normalitas yang andal.',
+                    'implication': 'Interpretasi normalitas dilakukan secara visual saja. Pertimbangkan collect more data.',
+                })
+
+        elif chart_type in ('bar', 'pie', 'count') and col_x and col_x in df.columns:
+            vc = df[col_x].value_counts()
+            top = vc.index[0]; top_pct = (vc.iloc[0] / vc.sum()) * 100
+            n_unique = df[col_x].nunique()
+
+            obs = f'"{top}" adalah kategori terbanyak ({top_pct:.1f}% dari {n_unique} kategori).'
+            if len(vc) >= 3:
+                bot = vc.index[-1]; bot_pct = (vc.iloc[-1] / vc.sum()) * 100
+                obs += f' Kategori paling sedikit: "{bot}" ({bot_pct:.1f}%).'
+                ratio = top_pct / max(bot_pct, 0.01)
+                obs += f' Rasio dominasi: {ratio:.1f}x.'
+
+            if top_pct > 70:
+                ana = f'Distribusi sangat timpang — kategori "{top}" mendominasi >70% observasi. Ketidakseimbangan ekstrem dapat menyebabkan model bias ke kelas mayoritas.'
+                imp = 'Gunakan stratified cross-validation. Terapkan SMOTE/ADASYN untuk oversampling atau class_weight="balanced". Evaluasi dengan precision-recall/F1-score, bukan akurasi.'
+            elif top_pct > 50:
+                ana = f'Distribusi cukup timpang — kategori "{top}" mendominasi >50% observasi. Kelas minoritas berisiko diabaikan model.'
+                imp = 'Pertimbangkan class weighting atau oversampling. Pantau recall per kelas selama evaluasi.'
+            else:
+                ana = 'Distribusi kategori relatif merata — tidak ada dominasi signifikan.'
+                imp = 'Model klasifikasi standar cocok digunakan. Accuracy adalah metrik valid untuk data seimbang.'
+
+            insights.append({
+                'icon': 'fa-crown' if top_pct > 50 else 'fa-balance-scale', 'text': obs,
+                'observation': obs,
+                'analysis': ana,
+                'implication': imp,
+            })
+
+        elif chart_type == 'pareto' and col_x and col_x in df.columns:
+            vc = df[col_x].value_counts()
+            top3 = vc.iloc[:3].sum()
+            total = vc.sum()
+            pct = (top3 / total) * 100
+            obs = f'3 kategori teratas mencakup {pct:.1f}% dari total ({top3}/{total}).'
+            ana = f'Prinsip Pareto (80/20): {pct:.1f}% dampak berasal dari kategori minoritas. Identifikasi kategori dengan kontribusi terbesar untuk optimasi.'
+            imp = 'Fokus rekayasa fitur dan analisis pada kategori-kategori dominan. Pertimbangkan penggabungan kategori minoritas ke dalam bucket "Lainnya" untuk menyederhanakan model.'
+            insights.append({
+                'icon': 'fa-chart-pie', 'text': obs,
+                'observation': obs, 'analysis': ana, 'implication': imp,
+            })
+
+        elif chart_type == 'scatter' and col_x and col_y and col_x in df.columns and col_y in df.columns:
+            valid = df[[col_x, col_y]].dropna()
+            if len(valid) >= 4:
+                r = valid[col_x].corr(valid[col_y])
+                direction = 'positif' if r > 0 else 'negatif'
+                strength = 'sangat kuat' if abs(r) > 0.8 else 'kuat' if abs(r) > 0.6 else 'sedang' if abs(r) > 0.4 else 'lemah'
+                r2 = r**2
+                obs = f'Korelasi {strength} {direction} antara {col_x} & {col_y} (r={r:.3f}, R²={r2:.3f}).'
+                n_total = len(df)
+                n_valid = len(valid)
+                if n_valid < n_total:
+                    obs += f' {n_total - n_valid} baris dihapus karena missing.'
+
+                if abs(r) > 0.7:
+                    ana = f'Korelasi kuat ({abs(r):.3f}) mengindikasikan hubungan linier yang erat. {col_x} dan {col_y} berbagi {r2*100:.1f}% varians.'
+                    imp = f'Jika kedua variabel akan digunakan sebagai prediktor, waspadai multikolinearitas (VIF>5). Pertimbangkan untuk hanya menggunakan salah satu, atau terapkan PCA/Ridge regression.'
+                elif abs(r) > 0.4:
+                    ana = f'Korelasi moderat ({abs(r):.3f}). Terdapat hubungan linier namun tidak dominan. {r2*100:.1f}% varians bersama.'
+                    imp = 'Kedua variabel umumnya dapat dimasukkan bersama dalam model tanpa risiko multikolinearitas signifikan.'
+                else:
+                    ana = f'Korelasi lemah ({abs(r):.3f}). Hanya {r2*100:.1f}% varians bersama — hubungan linier minimal.'
+                    imp = 'Kedua variabel memberikan informasi yang largely independent. Dapat digunakan bersama tanpa khawatir redundansi.'
+
+                insights.append({
+                    'icon': 'fa-link', 'text': obs,
+                    'observation': obs, 'analysis': ana, 'implication': imp,
+                })
+
+        elif chart_type in ('heatmap', 'heatmap_all', 'scatter_matrix') and num_cols and len(num_cols) >= 2:
+            corr = df[num_cols].corr()
+            max_pair = None; max_val = 0
+            for i, c1 in enumerate(num_cols):
+                for c2 in num_cols[i+1:]:
+                    v = abs(corr.loc[c1, c2])
+                    if v > max_val: max_val = v; max_pair = (c1, c2)
+
+            if max_pair:
+                r_val = corr.loc[max_pair[0], max_pair[1]]
+                direction = 'positif' if r_val > 0 else 'negatif'
+                strength = 'sangat kuat' if max_val > 0.8 else 'kuat' if max_val > 0.6 else 'sedang' if max_val > 0.4 else 'lemah'
+                r2 = r_val**2
+                obs = f'Korelasi {strength} {direction} antara {max_pair[0]} & {max_pair[1]} (r={max_val:.3f}). R²={r2:.3f} — {r2*100:.1f}% varians bersama.'
+
+                if max_val > 0.7:
+                    ana = f'Korelasi tinggi ({max_val:.3f}) menimbulkan risiko multikolinearitas jika kedua variabel digunakan bersama dalam model regresi. Identifikasi apakah salah satu merupakan turunan dari yang lain.'
+                    imp = f'Langkah yang disarankan: (1) Hitung VIF — jika >10, hapus salah satu; (2) Terapkan Ridge atau Lasso regression; (3) Gunakan PCA untuk mengortogonalisasi prediktor.'
+                elif max_val > 0.4:
+                    ana = f'Korelasi moderat ({max_val:.3f}) — hubungan linier cukup berarti namun tidak mengkhawatirkan untuk multikolinearitas.'
+                    imp = 'Kedua variabel umumnya aman digunakan bersama. Tetap monitor VIF sebagai langkah precautionary.'
+                else:
+                    ana = f'Korelasi lemah ({max_val:.3f}) — tidak ada hubungan linier yang berarti.'
+                    imp = 'Tidak ada risiko multikolinearitas dari pasangan ini. Kedua variabel memberikan informasi independen.'
+
+                insights.append({
+                    'icon': 'fa-link', 'text': obs,
+                    'observation': obs, 'analysis': ana, 'implication': imp,
+                })
+
+            # Count high-correlation pairs for multicollinearity warning
+            high_pairs = []
+            cols_list = list(corr.columns)
+            for i in range(len(cols_list)):
+                for j in range(i + 1, len(cols_list)):
+                    v = abs(corr.iloc[i, j])
+                    if pd.notna(v) and v >= 0.7:
+                        high_pairs.append((cols_list[i], cols_list[j], round(v, 3)))
+            if len(high_pairs) >= 2:
+                mc_obs = f'Terdeteksi {len(high_pairs)} pasangan dengan |r|≥0.7: ' + '; '.join([f'{a}↔{b}(r={v})' for a, b, v in high_pairs[:3]])
+                if len(high_pairs) > 3:
+                    mc_obs += f' (+{len(high_pairs)-3} lainnya).'
+                insights.append({
+                    'icon': 'fa-exclamation-triangle', 'text': mc_obs,
+                    'observation': mc_obs,
+                    'analysis': 'Multikolinearitas antar prediktor dapat menginflasi varians koefisien regresi dan membuat interpretasi tidak andal.',
+                    'implication': 'Gunakan VIF-based feature selection, Regularized Regression (Ridge/Lasso), atau PCA sebelum pemodelan regresi.',
+                })
+
+        elif chart_type == 'regression_plot' and col_x and col_y and col_x in df.columns and col_y in df.columns:
+            valid = df[[col_x, col_y]].dropna()
+            if len(valid) >= 4:
+                r = valid[col_x].corr(valid[col_y])
+                slope = np.polyfit(valid[col_x], valid[col_y], 1)[0]
+                trend = 'positif' if slope > 0 else 'negatif'
+                r2 = r**2
+                obs = f'Regresi {col_y} ~ {col_x}: slope={slope:.4f} (tren {trend}), r={r:.3f}, R²={r2:.3f}.'
+                ana = f'Setiap kenaikan 1 unit {col_x} diikuti perubahan {col_y} sebesar {slope:.4f}. Model menjelaskan {r2*100:.1f}% varians {col_y}.'
+                if abs(r) > 0.7:
+                    imp = 'Hubungan linier kuat — regresi linier sederhana dapat menjadi model yang efektif. Validasi asumsi (normalitas residual, homoskedastisitas) sebelum digunakan untuk inferensi.'
+                elif abs(r) > 0.4:
+                    imp = 'Hubungan linier moderat — regresi linier berguna namun mungkin perlu variabel tambahan untuk meningkatkan prediktivitas.'
+                else:
+                    imp = 'Hubungan linier lemah — pertimbangkan transformasi variabel atau model non-linier (polynomial regression, splines).'
+                insights.append({
+                    'icon': 'fa-chart-line', 'text': obs,
+                    'observation': obs, 'analysis': ana, 'implication': imp,
+                })
+
+        elif chart_type == 'bubble_chart' and col_x and col_y and col_z:
+            valid = df[[col_x, col_y]].dropna()
+            obs = f'Bubble chart: sumbu X={col_x}, Y={col_y}, ukuran gelembung={col_z}.'
+            ana = ''
+            imp = ''
+            if len(valid) >= 4:
+                r = valid[col_x].corr(valid[col_y])
+                obs += f' Korelasi X-Y: r={r:.3f}.'
+                if abs(r) > 0.5:
+                    ana = f'Terdapat hubungan linier antara {col_x} dan {col_y}. Ukuran gelembung ({col_z}) menambah dimensi ketiga untuk analisis multivariat.'
+                    imp = 'Gunakan bubble chart untuk identifikasi segmentasi atau outlier multivariat sebelum clustering atau pemodelan.'
+                else:
+                    ana = f'Hubungan antara {col_x} dan {col_y} lemah. Variabel mungkin independen.'
+                    imp = 'Bubble chart membantu visualisasi 3 dimensi simultan — berguna untuk eksplorasi awal anteseden clustering.'
+            insights.append({
+                'icon': 'fa-circle', 'text': obs,
+                'observation': obs, 'analysis': ana, 'implication': imp,
+            })
+
+        elif chart_type in ('box_cat_num', 'violin_cat_num', 'grouped_bar', 'strip_plot') and col_x and col_y:
+            if col_x in df.columns and col_y in df.columns:
+                valid = df[[col_x, col_y]].dropna()
+                groups = valid.groupby(col_x)[col_y]
+                means = groups.mean()
+                stds = groups.std()
+                top_g = means.idxmax(); bot_g = means.idxmin()
+                top_v = means.max(); bot_v = means.min()
+                ratio = top_v / bot_v if bot_v != 0 else float('inf')
+
+                obs = f'Rata-rata {col_y} tertinggi pada kategori "{top_g}" ({top_v:.2f}), terendah pada "{bot_g}" ({bot_v:.2f}). Rasio: {ratio:.1f}x.'
+                if ratio > 3:
+                    ana = f'Perbedaan sangat signifikan (rasio {ratio:.1f}x) — kategori memiliki pengaruh besar terhadap {col_y}.'
+                    imp = 'Kategorik ini merupakan kandidat kuat sebagai fitur dalam model. Pertimbangkan interaksi dengan variabel lain. Uji ANOVA untuk konfirmasi statistik.'
+                elif ratio > 2:
+                    ana = f'Perbedaan signifikan (rasio {ratio:.1f}x) — kategori memengaruhi {col_y}.'
+                    imp = 'Fitur kategorik ini informatif untuk model prediktif. Pastikan encoding tepat (one-hot/label encoding sesuai algoritma).'
+                else:
+                    ana = f'Perbedaan kecil antar kategori — variabel kategorik mungkin tidak memberikan daya prediksi signifikan.'
+                    imp = 'Pertimbangkan untuk tidak menyertakan fitur ini jika performa model tidak meningkat signifikan.'
+
+                insights.append({
+                    'icon': 'fa-layer-group', 'text': obs,
+                    'observation': obs, 'analysis': ana, 'implication': imp,
+                })
+
+                # Standard deviation insight
+                top_std_g = stds.idxmax() if len(stds) > 1 else None
+                if top_std_g and stds.max() > 0:
+                    obs2 = f'Variabilitas {col_y} tertinggi pada kategori "{top_std_g}" (std={stds.max():.2f}).'
+                    ana2 = 'Standar deviasi tinggi dalam suatu kategori menunjukkan heterogenitas internal yang perlu dieksplorasi lebih lanjut.'
+                    imp2 = 'Heteroskedastisitas antar kategori dapat memengaruhi asumsi regresi. Pertimbangkan weighted least squares atau robust standard errors.'
+                    insights.append({
+                        'icon': 'fa-ruler', 'text': obs2,
+                        'observation': obs2, 'analysis': ana2, 'implication': imp2,
+                    })
+
+        elif chart_type in ('violin_compare', 'grouped_bar_compare') and num_cols and len(num_cols) >= 2:
+            means_list = []
+            for c in num_cols:
+                if c in df.columns:
+                    s = df[c].dropna()
+                    if not s.empty:
+                        means_list.append((c, float(s.mean()), float(s.std())))
+            if means_list:
+                sorted_m = sorted(means_list, key=lambda x: x[1], reverse=True)
+                top_name, top_mean, top_std = sorted_m[0]
+                bot_name, bot_mean, bot_std = sorted_m[-1]
+                range_pct = ((top_mean - bot_mean) / max(abs(bot_mean), 0.001)) * 100
+
+                obs = f'Nilai tertinggi: {top_name} ({top_mean:.2f}), terendah: {bot_name} ({bot_mean:.2f}). Rentang: {range_pct:.1f}%.'
+                if range_pct > 200:
+                    ana = f'Perbedaan sangat besar ({range_pct:.1f}%) antar variabel — indikasi perbedaan skala yang signifikan.'
+                    imp = 'Standardisasi (Z-score) atau normalisasi (Min-Max) WAJIB sebelum analisis multivariat (PCA, clustering, regresi dengan banyak fitur).'
+                elif range_pct > 50:
+                    ana = f'Perbedaan cukup besar ({range_pct:.1f}%) — variabel memiliki skala yang berbeda.'
+                    imp = 'Standardisasi disarankan untuk model berbasis jarak dan gradien (SVM, KNN, neural networks).'
+                else:
+                    ana = f'Perbedaan kecil ({range_pct:.1f}%) — variabel berada dalam skala yang relatif sama.'
+                    imp = 'Standardisasi tidak kritis namun tetap disarankan untuk konsistensi.'
+
+                insights.append({
+                    'icon': 'fa-trophy', 'text': obs,
+                    'observation': obs, 'analysis': ana, 'implication': imp,
+                })
+
+                # CV comparison
+                cv_items = [(n, std/abs(m)*100 if m != 0 else 0) for n, m, std in means_list]
+                max_cv = max(cv_items, key=lambda x: x[1])
+                if max_cv[1] > 50:
+                    cv_obs = f'Variabilitas tertinggi: {max_cv[0]} (CV={max_cv[1]:.1f}%) — sebaran data sangat lebar.'
+                    cv_imp = 'Model tree-based umumnya lebih robust terhadap varians tinggi. Untuk model linier, pertimbangkan transformasi penstabil varians.'
+                    insights.append({
+                        'icon': 'fa-ruler-horizontal', 'text': cv_obs,
+                        'observation': cv_obs,
+                        'analysis': f'CV > 50% mengindikasikan ketidakstabilan yang dapat memengaruhi konvergensi model.',
+                        'implication': cv_imp,
+                    })
+
+        elif chart_type == 'parallel_coords' and num_cols and len(num_cols) >= 2:
+            obs = f'Parallel coordinates menampilkan {len(num_cols)} dimensi: {", ".join(num_cols[:5])}.'
+            corr_m = df[num_cols].corr().abs().unstack().sort_values(ascending=False)
+            corr_m = corr_m[corr_m < 1]
+            if len(corr_m) > 0:
+                top_pair = corr_m.index[0]
+                r_top = corr_m.iloc[0]
+                obs += f' Korelasi terkuat: {top_pair[0]} & {top_pair[1]} (r={r_top:.3f}).'
+                ana = f'Parallel coordinates efektif untuk mengidentifikasi pola multivariat dan outlier di seluruh {len(num_cols)} dimensi.'
+                imp = 'Gunakan untuk eksplorasi pola segmentasi sebelum clustering. Jika banyak garis saling overlapping, pertimbangkan subset fitur atau PCA.'
+            else:
+                ana = 'Visualisasi multidimensional untuk mengidentifikasi pola dan outlier.'
+                imp = 'Berguna untuk eksplorasi anteseden clustering atau reduksi dimensi.'
+
+            insights.append({
+                'icon': 'fa-bezier-curve', 'text': obs,
+                'observation': obs, 'analysis': ana, 'implication': imp,
+            })
+
+        elif chart_type == 'line' and col_x and col_x in df.columns:
+            s = df[col_x].dropna()
+            ts_df = df[[col_x]].copy()
+            ts_df.columns = ['x']
+            ts_df['x'] = pd.to_datetime(ts_df['x'], errors='coerce')
+            ts_df = ts_df.dropna(subset=['x'])
+            if col_y and col_y in df.columns:
+                ts_df['y'] = df.loc[ts_df.index, col_y].astype(float)
+            else:
+                ts_df['y'] = 1.0
+            ts_df = ts_df.set_index('x').sort_index()
+            y_vals = ts_df['y'].values
+            n = len(y_vals)
+            if n >= 4:
+                x_num = np.arange(n)
+                slope, intercept, r, p, _ = scipy_stats.linregress(x_num, y_vals)
+                direction = 'meningkat' if slope > 0 else 'menurun'
+                sig_text = 'signifikan' if p < 0.05 else 'tidak signifikan'
+                r2 = r ** 2
+                cv = (np.std(y_vals) / abs(np.mean(y_vals)) * 100) if np.mean(y_vals) != 0 else 0
+                vol_label = 'tinggi' if cv > 30 else ('sedang' if cv > 10 else 'rendah')
+                date_min = str(ts_df.index.min())[:10]
+                date_max = str(ts_df.index.max())[:10]
+                val_min = float(ts_df['y'].min())
+                val_max = float(ts_df['y'].max())
+                peak_date = str(ts_df['y'].idxmax())[:10]
+                trough_date = str(ts_df['y'].idxmin())[:10]
+                change_pct = ((y_vals[-1] - y_vals[0]) / abs(y_vals[0]) * 100) if y_vals[0] != 0 else 0
+
+                obs = (f'Data deret waktu dari {date_min} hingga {date_max} ({n} titik). '
+                       f'Variabel menunjukkan tren {direction} dengan slope={slope:.4f} per periode, '
+                       f'R²={r2:.3f} ({sig_text}, p={p:.4f}). '
+                       f'Perubahan keseluruhan: {change_pct:+.1f}%. '
+                       f'Nilai tertinggi {val_max:,.2f} pada {peak_date}, terendah {val_min:,.2f} pada {trough_date}. '
+                       f'CV={cv:.1f}% (volatilitas {vol_label}).')
+                ana = (f'Tren yang {direction} {"signifikan" if p < 0.05 else "belum signifikan"} ini '
+                       f'mengindikasikan pola {"pergerakan konsisten" if abs(slope) > 0.01 else "stabil"} '
+                       f'selama periode pengamatan. '
+                       f'R² sebesar {r2:.3f} menunjukkan bahwa model linier dapat menjelaskan '
+                       f'{r2*100:.1f}% variasi data. '
+                       f'Volatilitas {vol_label} (CV={cv:.1f}%) {"perlu diwaspadai karena fluktuasi besar" if cv > 30 else "masih dalam batas toleransi"}.')
+                imp_parts = []
+                if abs(slope) > 0.001:
+                    imp_parts.append('Gunakan model yang menangani tren dan musiman (SARIMA, Prophet, LSTM) untuk peramalan.')
+                else:
+                    imp_parts.append('Data relatif stasioner — model rata-rata atau simple exponential smoothing mungkin memadai.')
+                if cv > 30:
+                    imp_parts.append('Volatilitas tinggi mengindikasikan perlunya transformasi stabilisasi varians (Box-Cox) sebelum pemodelan.')
+                if abs(change_pct) > 20:
+                    imp_parts.append(f'Perubahan keseluruhan {change_pct:+.1f}% memerlukan perhatian khusus dalam konteks bisnis.')
+                imp = ' '.join(imp_parts)
+            else:
+                obs = f'Titik data terlalu sedikit ({n}) untuk analisis tren yang bermakna.'
+                ana = 'Data dengan kurang dari 4 titik tidak cukup untuk regresi linier yang andal.'
+                imp = 'Kumpulkan lebih banyak data atau gunakan pendekatan kualitatif untuk pengambilan keputusan.'
+
+            insights.append({
+                'icon': 'fa-chart-line', 'text': obs,
+                'observation': obs, 'analysis': ana, 'implication': imp,
+            })
+
+    except Exception:
+        insights.append({
+            'icon': 'fa-brain', 'text': 'Insight tidak tersedia untuk chart ini.',
+            'observation': '', 'analysis': '', 'implication': '',
+        })
+    if not insights:
+        insights.append({
+            'icon': 'fa-brain', 'text': 'Data tersedia untuk dieksplorasi lebih lanjut.',
+            'observation': '', 'analysis': '', 'implication': '',
+        })
+    return insights
+
+
 # ─── MASTER ENTRY POINT ──────────────────────────────────────────────────────
 
 def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
-                          col_x=None, col_y=None, col_z=None):
+                          col_x=None, col_y=None, col_z=None, theme='dark',
+                          save_path=None):
+    set_theme(theme)
     if not category_available(category, num_cols, cat_cols):
         return {
             'ok'         : False,
@@ -908,7 +1726,18 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
                     'kpis'       : kpis,
                 }
             
+            # Save as PNG if requested
+            saved_to = None
+            if save_path and isinstance(save_path, str):
+                save_figure(chart, save_path)
+                saved_to = save_path
+            elif save_path is True:
+                safe = "".join(c for c in f"{category}_{chart_type}_all" if c.isalnum() or c in ('_', '-'))
+                saved_to = os.path.join('frontend', 'static', 'temp_plots', f"{safe}.png")
+                save_figure(chart, saved_to)
+
             idx = types.index(chart_type)
+            ins = _generate_vizmaster_insights(chart_type, df, col_x=col_x, col_y=col_y, col_z=col_z, num_cols=num_cols, cat_cols=cat_cols)
             return {
                 'ok'          : True,
                 'chart'       : chart,
@@ -920,6 +1749,8 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
                 'col_x'       : col_x,
                 'col_y'       : col_y,
                 'col_z'       : col_z,
+                'save_path'   : saved_to,
+                'insights'    : ins,
             }
         except Exception as e:
             import traceback
@@ -951,11 +1782,13 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
             'bubble_chart'        : lambda: _chart_bubble_chart(df, col_x, col_y, col_z) if _valid(col_x) and _valid(col_y) and _valid(col_z) else None,
             'box_cat_num'         : lambda: _chart_box_cat_num(df, col_x, col_y) if _valid(col_x) and _valid(col_y) else None,
             'violin_cat_num'      : lambda: _chart_violin_cat_num(df, col_x, col_y) if _valid(col_x) and _valid(col_y) else None,
+            'line'                : lambda: _chart_line(df, col_x, col_y) if _valid(col_x) else None,
             'grouped_bar'         : lambda: _chart_grouped_bar(df, col_x, col_y) if _valid(col_x) and _valid(col_y) else None,
             'strip_plot'          : lambda: _chart_strip_plot(df, col_x, col_y) if _valid(col_x) and _valid(col_y) else None,
             'violin_compare'      : lambda: _chart_violin_compare(df, num_cols),
             'grouped_bar_compare' : lambda: _chart_grouped_bar_compare(df, num_cols),
             'parallel_coords'     : lambda: _chart_parallel_coords(df, num_cols),
+            'heatmap_all'         : lambda: _chart_heatmap_all(df),
         }
 
         chart = builders[chart_type]()
@@ -966,6 +1799,17 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
                 'kpis'       : build_kpis(category, df, col_x, col_y, num_cols),
             }
 
+        # Save as PNG if requested
+        saved_to = None
+        if save_path and isinstance(save_path, str):
+            save_figure(chart, save_path)
+            saved_to = save_path
+        elif save_path is True:
+            safe = "".join(c for c in f"{category}_{chart_type}" if c.isalnum() or c in ('_', '-'))
+            saved_to = os.path.join('frontend', 'static', 'temp_plots', f"{safe}.png")
+            save_figure(chart, saved_to)
+
+        ins = _generate_vizmaster_insights(chart_type, df, col_x=col_x, col_y=col_y, col_z=col_z, num_cols=num_cols, cat_cols=cat_cols)
         idx = types.index(chart_type)
         return {
             'ok'          : True,
@@ -978,6 +1822,8 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
             'col_x'       : col_x,
             'col_y'       : col_y,
             'col_z'       : col_z,
+            'save_path'   : saved_to,
+            'insights'    : ins,
         }
 
     except Exception as e:

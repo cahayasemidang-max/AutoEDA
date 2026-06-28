@@ -1641,5 +1641,6 @@ def api_ts_charts(filename):
 
 if __name__ == '__main__':
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
-    port = int(os.getenv('PORT', 5000))
+    # Ubah default port dari 5000 menjadi 7860
+    port = int(os.getenv('PORT', 7860)) 
     app.run(debug=debug, host='0.0.0.0', port=port)

@@ -28,7 +28,7 @@
       return;
     }
 
-    var url = '/api/ts-chart/' + encodeURIComponent(filename)
+    var url = '/api/ts-charts/' + encodeURIComponent(filename)
       + '?dt_col=' + encodeURIComponent(dtCol || '')
       + '&num_col=' + encodeURIComponent(numCol || '')
       + '&freq=' + encodeURIComponent(freq || '')

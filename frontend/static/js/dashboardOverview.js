@@ -73,22 +73,28 @@ var OverviewDashboard = (function () {
     }
 
     // ── Binary decode ──────────────────────────────────────────────────────────
+    function _b64ToUint8(b64) {
+        var bin = atob(b64);
+        var u8  = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        return u8;
+    }
+
     function _decodeBinaryField(field) {
         if (!field || typeof field !== 'object' || !field.bdata) return field;
-        var dtype  = field.dtype || 'f8';
-        var binary = atob(field.bdata);
-        var len    = binary.length;
-        var buf    = new ArrayBuffer(len);
-        var view   = new Uint8Array(buf);
-        for (var i = 0; i < len; i++) view[i] = binary.charCodeAt(i);
+        var dtype = field.dtype || 'f8';
+        var u8    = _b64ToUint8(field.bdata);
+        var buf   = u8.buffer;
+        var off   = u8.byteOffset;
+        var len   = u8.byteLength;
         var arr;
-        if      (dtype === 'f8') arr = new Float64Array(buf);
-        else if (dtype === 'f4') arr = new Float32Array(buf);
-        else if (dtype === 'i4') arr = new Int32Array(buf);
-        else if (dtype === 'i2') arr = new Int16Array(buf);
-        else if (dtype === 'u4') arr = new Uint32Array(buf);
-        else if (dtype === 'u1') arr = new Uint8Array(buf);
-        else                     arr = new Float64Array(buf);
+        if      (dtype === 'f8') arr = new Float64Array(buf, off, len / 8);
+        else if (dtype === 'f4') arr = new Float32Array(buf, off, len / 4);
+        else if (dtype === 'i4') arr = new Int32Array  (buf, off, len / 4);
+        else if (dtype === 'i2') arr = new Int16Array  (buf, off, len / 2);
+        else if (dtype === 'u4') arr = new Uint32Array (buf, off, len / 4);
+        else if (dtype === 'u1') arr = new Uint8Array  (buf, off, len);
+        else                     arr = new Float64Array(buf, off, len / 8);
         return Array.from(arr);
     }
 
@@ -204,8 +210,9 @@ var OverviewDashboard = (function () {
                     var titleEl = document.getElementById(slotId + '-title');
                     if (titleEl && title) titleEl.textContent = title;
                     var insightEl = document.getElementById(slotId + '-insight');
-                    var insights = (toggle.insights || {})[col];
-                    console.log('[Overview] insight data:', slotId, 'col:', col, 'insights:', insights ? insights.length + ' items' : 'undefined', 'el:', !!insightEl);
+                    var slotInsights = (data.slots[slotId] || {}).all_insights || {};
+                    var insights = (toggle.insights || slotInsights)[col];
+                    console.log('[Overview] insight data:', slotId, 'col:', col, 'insights:', insights ? insights.length + ' items' : 'undefined', 'el:', !!insightEl, 'toggle_insights:', !!toggle.insights, 'slotInsights keys:', Object.keys(slotInsights));
                     if (insightEl) {
                         var label = typeof I18N !== 'undefined' ? I18N.t('ov_smart_insight') : 'Smart Insight';
                         var html = '<div class="ov-smart-insight-label"><i class="fas fa-brain"></i> ' + label + '</div>';

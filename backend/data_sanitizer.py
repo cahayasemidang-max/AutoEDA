@@ -323,14 +323,22 @@ def safe_iqr_outliers(series: pd.Series):
         return None
 
 
+# Max columns for correlation matrix to prevent OOM/timeout
+MAX_CORR_COLS = 50
+
+
 def safe_corr_matrix(df: pd.DataFrame, num_cols: list):
     """
     Compute correlation matrix using only the valid numeric columns.
     Returns (valid_cols, corr_df) or ([], None).
+    Limited to MAX_CORR_COLS columns to prevent OOM on 100-column datasets.
     """
     valid = filter_numeric_cols(df, num_cols)
     if len(valid) < 2:
         return [], None
+    if len(valid) > MAX_CORR_COLS:
+        logger.warning(f"[sanitizer] corr matrix truncated from {len(valid)} to {MAX_CORR_COLS} cols")
+        valid = valid[:MAX_CORR_COLS]
     try:
         # Work on a sanitized copy so string-encoded numbers are handled
         df2 = sanitize_df_numeric_cols(df, valid)

@@ -78,6 +78,23 @@ def _cfg():
     return THEME_CONFIG[get_theme()]
 
 
+# ─── Performance Constants ───────────────────────────────────────────────────
+MAX_POINTS = 5000
+
+def _sample_data(series, max_points=MAX_POINTS):
+    """Downsample a Series to max_points using systematic random sampling."""
+    if series is None or len(series) <= max_points:
+        return series
+    return series.sample(max_points, random_state=42)
+
+
+def _sample_df(df, max_points=MAX_POINTS):
+    """Downsample a DataFrame to max_points using systematic random sampling."""
+    if df is None or len(df) <= max_points:
+        return df
+    return df.sample(max_points, random_state=42)
+
+
 # ─── High Visual Dark Palette ────────────────────────────────────────────────
 PALETTE = ['#4ECDC4', '#7EA9FF', '#A8E6CF', '#C9B8FF', '#88D4E8', '#F4A9C8']
 # Kept for backward compat — new code reads from _cfg()
@@ -298,6 +315,7 @@ def _chart_histogram(df, col):
     clean = sanitize_series(raw, col)   # forced numeric conversion
     if clean.empty:
         return None
+    clean = _sample_data(clean)
     fig   = go.Figure()
     # FIX: .tolist() prevents bdata encoding
     fig.add_trace(go.Histogram(
@@ -327,6 +345,7 @@ def _chart_boxplot(df, col):
     clean = sanitize_series(df[col] if col in df.columns else pd.Series(dtype=float), col)
     if clean.empty:
         return None
+    clean = _sample_data(clean)
     fig = go.Figure(go.Box(
         y=_to_list(clean), name=col,
         marker_color=PALETTE[0],
@@ -341,6 +360,7 @@ def _chart_density(df, col):
     clean = sanitize_series(df[col] if col in df.columns else pd.Series(dtype=float), col)
     if len(clean) < 3:
         return None
+    clean = _sample_data(clean)
     try:
         kde_x = np.linspace(float(clean.min()), float(clean.max()), 300)
         kde   = scipy_stats.gaussian_kde(clean)
@@ -361,6 +381,7 @@ def _chart_qq(df, col):
     clean = sanitize_series(df[col] if col in df.columns else pd.Series(dtype=float), col)
     if len(clean) < 4:
         return None
+    clean = _sample_data(clean)
     try:
         clean_arr = clean.values
         (osm, osr), (slope, intercept, _) = scipy_stats.probplot(clean_arr, dist='norm')
@@ -391,6 +412,7 @@ def _chart_violin(df, col):
     clean = sanitize_series(df[col] if col in df.columns else pd.Series(dtype=float), col)
     if clean.empty:
         return None
+    clean = _sample_data(clean)
     fig = go.Figure(go.Violin(
         y=_to_list(clean), name=col,
         fillcolor=PALETTE[0], line_color=PALETTE[1],
@@ -416,6 +438,10 @@ def _chart_bar(df, col):
 
 
 def _chart_pie(df, col):
+    # Guard: jika nunique > 5, fallback ke Bar Chart (Pie berantakan)
+    if df[col].nunique() > 5:
+        return _chart_bar(df, col)
+    
     vc  = df[col].value_counts().head(10)
     fig = go.Figure(go.Pie(
         labels=vc.index.astype(str).tolist(),
@@ -474,6 +500,7 @@ def _chart_pareto(df, col):
 
 def _chart_scatter(df, col_x, col_y):
     clean = df[[col_x, col_y]].dropna()
+    clean = _sample_df(clean)
     fig = go.Figure(go.Scatter(
         x=_to_list(clean[col_x]),
         y=_to_list(clean[col_y]),
@@ -590,6 +617,7 @@ def _chart_scatter_matrix(df, num_cols):
     df_s = df[cols].dropna()
     if df_s.empty:
         return None
+    df_s = _sample_df(df_s)
     fig = px.scatter_matrix(
         df_s, dimensions=cols,
         color_discrete_sequence=PALETTE,
@@ -611,6 +639,7 @@ def _chart_regression_plot(df, col_x, col_y):
     df_r = df[[col_x, col_y]].dropna()
     if len(df_r) < 4:
         return None
+    df_r = _sample_df(df_r)
     if df_r[col_x].nunique() < 2:
         return _chart_scatter(df, col_x, col_y)
 
@@ -657,6 +686,7 @@ def _chart_bubble_chart(df, col_x, col_y, col_z):
     df_b = df[[col_x, col_y, col_z]].dropna()
     if df_b.empty:
         return None
+    df_b = _sample_df(df_b)
     size_range = float(df_b[col_z].max()) - float(df_b[col_z].min())
     if size_range == 0:
         size_scaled = [20] * len(df_b)
@@ -686,6 +716,7 @@ def _chart_bubble_chart(df, col_x, col_y, col_z):
 def _chart_box_cat_num(df, cat_col, num_col):
     top = df[cat_col].value_counts().head(8).index
     sub = df[df[cat_col].isin(top)]
+    sub = _sample_df(sub)
     fig = px.box(
         sub, x=cat_col, y=num_col, color=cat_col,
         color_discrete_sequence=PALETTE,
@@ -699,6 +730,7 @@ def _chart_box_cat_num(df, cat_col, num_col):
 def _chart_violin_cat_num(df, cat_col, num_col):
     top = df[cat_col].value_counts().head(8).index
     sub = df[df[cat_col].isin(top)]
+    sub = _sample_df(sub)
     fig = px.violin(
         sub, x=cat_col, y=num_col, color=cat_col,
         color_discrete_sequence=PALETTE, box=True, points='outliers',
@@ -723,6 +755,7 @@ def _chart_grouped_bar(df, cat_col, num_col):
 def _chart_strip_plot(df, cat_col, num_col):
     top = df[cat_col].value_counts().head(10).index
     sub = df[df[cat_col].isin(top)]
+    sub = _sample_df(sub)
     fig = px.strip(
         sub, x=cat_col, y=num_col,
         color_discrete_sequence=[PALETTE[0]],
@@ -830,6 +863,7 @@ def _chart_all_numerical(df, num_cols, chart_type):
         clean = df[col].dropna()
         if clean.empty:
             continue
+        clean = _sample_data(clean)
         
         color = PALETTE[i % len(PALETTE)]
         
@@ -916,13 +950,22 @@ def _chart_all_categorical(df, cat_cols, chart_type):
         color = PALETTE[i % len(PALETTE)]
         
         if chart_type == 'pie':
-            fig.add_trace(go.Pie(
-                labels=vc.index.astype(str).tolist(),
-                values=vc.values.tolist(),
-                hole=0.4,
-                name=col,
-                showlegend=False,
-            ), row=r, col=c)
+            # Guard: jika nunique > 5, fallback ke Bar Chart (Pie berantakan)
+            if df[col].nunique() > 5:
+                fig.add_trace(go.Bar(
+                    x=vc.index.astype(str).tolist(),
+                    y=vc.values.tolist(),
+                    marker_color=color, opacity=0.85, name=col,
+                    hovertemplate='%{x}<br>Count: %{y:,}<extra></extra>',
+                ), row=r, col=c)
+            else:
+                fig.add_trace(go.Pie(
+                    labels=vc.index.astype(str).tolist(),
+                    values=vc.values.tolist(),
+                    hole=0.4,
+                    name=col,
+                    showlegend=False,
+                ), row=r, col=c)
         elif chart_type == 'count':
             vc_sorted = vc.sort_values()
             fig.add_trace(go.Bar(
@@ -1772,7 +1815,7 @@ def generate_master_chart(df, num_cols, cat_cols, category, chart_type,
             'qq'                  : lambda: _chart_qq(df, col_x) if _valid(col_x) else None,
             'violin'              : lambda: _chart_violin(df, col_x) if _valid(col_x) else None,
             'bar'                 : lambda: _chart_bar(df, col_x) if _valid(col_x) else None,
-            'pie'                 : lambda: _chart_pie(df, col_x) if _valid(col_x) else None,
+            'pie'                 : lambda: _chart_pie(df, col_x) if _valid(col_x) else None,  # _chart_pie has nunique guard
             'count'               : lambda: _chart_count(df, col_x) if _valid(col_x) else None,
             'pareto'              : lambda: _chart_pareto(df, col_x) if _valid(col_x) else None,
             'scatter'             : lambda: _chart_scatter(df, col_x, col_y) if _valid(col_x) and _valid(col_y) else None,

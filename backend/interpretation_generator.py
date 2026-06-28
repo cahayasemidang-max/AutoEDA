@@ -162,10 +162,10 @@ def generate_interpretation(ctx, lang, ai_settings):
         expected_keys = {'summary', 'key_findings', 'recommendations', 'conclusion'}
         if not expected_keys.issubset(result.keys()):
             result = {
-                'summary': raw,
-                'key_findings': [],
-                'recommendations': [],
-                'conclusion': '',
+                'summary': str(result.get('summary', raw if isinstance(raw, str) else '')),
+                'key_findings': result.get('key_findings', []),
+                'recommendations': result.get('recommendations', []),
+                'conclusion': str(result.get('conclusion', '')),
             }
         if isinstance(result.get('key_findings'), list):
             result['key_findings'] = [str(f) for f in result['key_findings']]
@@ -180,7 +180,7 @@ def generate_interpretation(ctx, lang, ai_settings):
         return result
     except json.JSONDecodeError:
         return {
-            'summary': raw,
+            'summary': raw[:2000],
             'key_findings': [],
             'recommendations': [],
             'conclusion': '',

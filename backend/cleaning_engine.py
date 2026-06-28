@@ -57,6 +57,19 @@ class CleaningSession:
 
     MAX_HISTORY = 5    # batas undo stack (dikurangi dari 20 untuk hemat memori)
 
+    @staticmethod
+    def _get_max_history(df):
+        """Dynamic history limit based on DataFrame memory footprint."""
+        try:
+            mem_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
+            if mem_mb > 500:
+                return 2
+            if mem_mb > 100:
+                return 3
+            return CleaningSession.MAX_HISTORY
+        except Exception:
+            return CleaningSession.MAX_HISTORY
+
     def __init__(self, df_raw: pd.DataFrame, filename: str, session_key: str = None):
         self.filename     = filename
         self._session_key = session_key or filename
@@ -117,10 +130,11 @@ class CleaningSession:
 
         summary = self._build_summary(df_before, df_after, log)
 
-        # Trim history jika melebihi batas
-        if len(self._history) >= self.MAX_HISTORY:
+        # Trim history jika melebihi batas (dynamic based on memory)
+        max_hist = self._get_max_history(df_before)
+        if len(self._history) >= max_hist:
             # Pertahankan initial (index 0) + trim dari index 1
-            self._history = [self._history[0]] + self._history[-(self.MAX_HISTORY - 2):]
+            self._history = [self._history[0]] + self._history[-(max_hist - 2):]
 
         snap = _Snapshot(
             df        = df_after,
@@ -466,8 +480,35 @@ def _save_session(session: CleaningSession):
         return
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'wb') as f:
-            pickle.dump(session, f, protocol=pickle.HIGHEST_PROTOCOL)
+        # For large DataFrames, use parquet instead of pickle for efficiency
+        try:
+            mem_mb = session.df_current.memory_usage(deep=True).sum() / (1024 * 1024)
+            if mem_mb > 50:
+                ext = '.parquet'
+                data_path = path.replace('.pkl', ext)
+                session.df_current.to_parquet(data_path, index=False)
+                # Save just the metadata without DataFrame
+                meta = {
+                    'session_key': session._session_key,
+                    'filename': session.filename,
+                    'is_cleaned': session.is_cleaned,
+                    'ignored_cols': session.ignored_cols,
+                    'history_labels': [
+                        {'label': s.label, 'op_type': s.op_type, 'op_params': s.op_params,
+                         'summary': s.summary, 'timestamp': s.timestamp}
+                        for s in session._history
+                    ],
+                    'data_path': data_path,
+                }
+                with open(path, 'wb') as f:
+                    pickle.dump(meta, f, protocol=pickle.HIGHEST_PROTOCOL)
+                return
+            else:
+                with open(path, 'wb') as f:
+                    pickle.dump(session, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception:
+            with open(path, 'wb') as f:
+                pickle.dump(session, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as e:
         print(f"[cleaning_engine] Save error for {session._session_key}: {e}")
 
@@ -478,7 +519,24 @@ def _load_session(session_key: str) -> CleaningSession | None:
         return None
     try:
         with open(path, 'rb') as f:
-            return pickle.load(f)
+            data = pickle.load(f)
+        # Check if it's a metadata-only save (large DataFrame)
+        if isinstance(data, dict) and 'data_path' in data:
+            meta = data
+            df = pd.read_parquet(meta['data_path'])
+            sess = CleaningSession(df, meta['filename'], session_key=meta['session_key'])
+            sess.is_cleaned = meta['is_cleaned']
+            sess.ignored_cols = meta['ignored_cols']
+            # Overwrite history with reconstructed snapshots
+            sess._history = []
+            for h in meta['history_labels']:
+                snap = _Snapshot.__new__(_Snapshot)
+                for k, v in h.items():
+                    setattr(snap, k, v)
+                snap.df = df
+                sess._history.append(snap)
+            return sess
+        return data
     except Exception as e:
         print(f"[cleaning_engine] Load error for {session_key}: {e}")
         return None
@@ -491,6 +549,57 @@ def _delete_session_disk(session_key: str):
             os.remove(path)
         except Exception as e:
             print(f"[cleaning_engine] Delete error for {session_key}: {e}")
+    # Also clean up parquet if exists
+    parquet_path = path.replace('.pkl', '.parquet') if path else None
+    if parquet_path and os.path.exists(parquet_path):
+        try:
+            os.remove(parquet_path)
+        except Exception:
+            pass
+
+
+# ─── Session cleanup ──────────────────────────────────────────────────────────
+
+def cleanup_old_sessions(max_age_hours=24, max_total_mb=500):
+    """Remove old session files and limit total disk usage."""
+    if _session_storage_dir is None or not os.path.exists(_session_storage_dir):
+        return 0
+    now = datetime.datetime.now()
+    total_size = 0
+    removed = 0
+    files = []
+    for fname in os.listdir(_session_storage_dir):
+        fpath = os.path.join(_session_storage_dir, fname)
+        if not os.path.isfile(fpath):
+            continue
+        fsize = os.path.getsize(fpath)
+        fmtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath))
+        age_hours = (now - fmtime).total_seconds() / 3600
+        files.append((fpath, fsize, age_hours))
+        total_size += fsize
+    # Remove by age
+    for fpath, fsize, age_hours in files:
+        if age_hours > max_age_hours:
+            try:
+                os.remove(fpath)
+                removed += 1
+                total_size -= fsize
+            except Exception:
+                pass
+    # If still over quota, remove oldest first
+    if total_size > max_total_mb * 1024 * 1024:
+        sorted_files = sorted(files, key=lambda x: x[2], reverse=True)
+        for fpath, fsize, _ in sorted_files:
+            if total_size <= max_total_mb * 1024 * 1024:
+                break
+            if os.path.exists(fpath):
+                try:
+                    os.remove(fpath)
+                    removed += 1
+                    total_size -= fsize
+                except Exception:
+                    pass
+    return removed
 
 
 # ─── Operation dispatcher ─────────────────────────────────────────────────────

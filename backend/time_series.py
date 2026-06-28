@@ -12,6 +12,7 @@ Fitur:
 """
 
 import json
+import re
 import threading
 import warnings
 import numpy as np
@@ -97,6 +98,23 @@ def _safe_json(fig):
 # AUTO-DETECTION
 # ════════════════════════════════════════════════════════════════════════════
 
+def _try_parse_dates(sample, threshold=0.50):
+    """
+    Coba parsing datetime dengan format='mixed' untuk menangani format campuran.
+    Mengembalikan (parsed_series, success_rate) atau (None, 0) jika gagal.
+    """
+    if sample is None or sample.empty:
+        return None, 0
+    try:
+        parsed = pd.to_datetime(sample, errors='coerce', format='mixed')
+        rate = parsed.notna().mean()
+        if rate >= threshold and _plausible_dates(parsed):
+            return parsed, rate
+    except Exception:
+        pass
+    return None, 0
+
+
 def _plausible_dates(parsed_series):
     """
     Validasi bahwa hasil parsing datetime bukan false positive.
@@ -110,6 +128,10 @@ def _plausible_dates(parsed_series):
     if min_date.year == 1970 and max_date.year == 1970:
         return False
     if (max_date - min_date).total_seconds() < 1:
+        return False
+    if max_date.year < 1900 or max_date.year > 2100:
+        return False
+    if min_date.year < 1900 or min_date.year > 2100:
         return False
     return True
 
@@ -134,12 +156,9 @@ def detect_datetime_cols(df):
         sample = df[col].dropna().head(200)
         if sample.empty:
             continue
-        try:
-            parsed = pd.to_datetime(sample, errors='coerce')
-            if parsed.notna().mean() >= 0.70 and _plausible_dates(parsed):
-                dt_cols.append(col)
-        except Exception:
-            pass
+        parsed, rate = _try_parse_dates(sample, threshold=0.40)
+        if parsed is not None and rate >= 0.40:
+            dt_cols.append(col)
 
     # 3. Fallback: kolom dengan nama mengandung kata kunci datetime
     # NOTE: 'year', 'tahun', 'month', 'bulan', 'hari', 'day' tidak termasuk
@@ -157,14 +176,20 @@ def detect_datetime_cols(df):
             sample = df[col].dropna().head(200)
             if sample.empty:
                 continue
-            try:
-                parsed = pd.to_datetime(sample, errors='coerce')
-                if parsed.notna().mean() >= 0.50 and _plausible_dates(parsed):
-                    dt_cols.append(col)
-            except Exception:
-                pass
+            parsed, rate = _try_parse_dates(sample, threshold=0.40)
+            if parsed is not None and rate >= 0.40:
+                dt_cols.append(col)
 
     # 4. Coba parse numerik timestamp (epoch seconds) — hanya nilai yang masuk akal
+    # Skip kolom dengan nama yang jelas-jelas bukan timestamp
+    non_epoch_keywords = [
+        'price', 'sales', 'cost', 'amount', 'revenue', 'profit', 'harga',
+        'penjualan', 'biaya', 'total', 'gross', 'net', 'discount', 'shipping',
+        'quantity', 'qty', 'unit', 'rate', 'score', 'rating', 'fee', 'tax',
+        'pajak', 'payment', 'charge', 'balance', 'saldo', 'fund', 'dana',
+    ]
+    financial_col_patterns = [re.compile(re.escape(kw), re.IGNORECASE) for kw in non_epoch_keywords]
+
     for col in df.columns:
         if col in dt_cols:
             continue
@@ -173,28 +198,38 @@ def detect_datetime_cols(df):
             continue
         if not pd.api.types.is_numeric_dtype(s):
             continue
+
+        # Skip kolom yang namanya mengandung kata finansial/kuantitas
+        col_lower = col.lower()
+        if any(pat.search(col_lower) for pat in financial_col_patterns):
+            continue
+
         vmax = float(s.max())
         vmin = float(s.min())
-        is_plausible_epoch = (
-            (1e8 < vmax < 2e10) or          # seconds range (1973+ ~ 2033)
-            (1e11 < vmax < 2e13)             # milliseconds range
-        )
-        if not is_plausible_epoch:
+
+        # Pastikan nilai minimum juga masuk akal untuk epoch (bukan nol atau sangat kecil)
+        is_seconds_epoch = (1e8 < vmin and vmax < 2e10)
+        is_ms_epoch      = (1e11 < vmin and vmax < 2e13)
+
+        if not (is_seconds_epoch or is_ms_epoch):
             continue
+
         sample = s.head(200)
-        try:
-            parsed = pd.to_datetime(sample, unit='s', errors='coerce')
-            if parsed.notna().mean() >= 0.90 and _plausible_dates(parsed):
-                dt_cols.append(col)
-                continue
-        except Exception:
-            pass
-        try:
-            parsed = pd.to_datetime(sample, unit='ms', errors='coerce')
-            if parsed.notna().mean() >= 0.90 and _plausible_dates(parsed):
-                dt_cols.append(col)
-        except Exception:
-            pass
+        if is_seconds_epoch:
+            try:
+                parsed = pd.to_datetime(sample, unit='s', errors='coerce')
+                if parsed.notna().mean() >= 0.90 and _plausible_dates(parsed):
+                    dt_cols.append(col)
+                    continue
+            except Exception:
+                pass
+        if is_ms_epoch:
+            try:
+                parsed = pd.to_datetime(sample, unit='ms', errors='coerce')
+                if parsed.notna().mean() >= 0.90 and _plausible_dates(parsed):
+                    dt_cols.append(col)
+            except Exception:
+                pass
 
     return dt_cols
 

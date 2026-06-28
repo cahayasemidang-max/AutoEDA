@@ -7,13 +7,15 @@ Logika deteksi:
   2. Kolom numerik tapi isinya kode/kategori (< threshold unique ratio) → masuk cat_cols
   3. Kolom object tapi isinya angka semua → dicoba convert ke numerik
   4. Boolean → masuk cat_cols
-  5. Datetime → dikeluarkan dari keduanya (ditangani time_series.py)
+  5. Datetime / Time Series → dikeluarkan dari num_cols & cat_cols (ditangani time_series.py)
+     Deteksi: nama kolom mengandung keyword waktu + >80% nilai berhasil pd.to_datetime()
 """
 
 import pandas as pd
 import numpy as np
 import re
 from backend.data_sanitizer import clean_and_parse_numeric
+from backend.time_series import _try_parse_dates
 
 # ── Threshold ────────────────────────────────────────────────────────────────
 # Kolom numerik dengan unique ratio < ini DAN unique count < MAX_CAT_UNIQUE
@@ -42,8 +44,21 @@ FORCE_NUM_PATTERNS = re.compile(
     r'|percent|pct|persen|suhu|temperature|temp|lat|lon|latitude|longitude'
     r'|distance|jarak|duration|durasi|time|waktu|hour|jam|minute|menit'
     r'|second|detik|speed|kecepatan|volume|kapasitas|capacity)(\b|_)',
+)
+
+# ── Pola keyword Time Series / Datetime ──────────────────────────────────────
+# Digunakan untuk mendeteksi kolom yang berpotensi berisi data waktu/tanggal.
+TS_KEYWORDS = re.compile(
+    r'(date|time|datetime|timestamp|day|month|year'
+    r'|tgl|tanggal|bulan|hari|waktu|jam|menit|detik'
+    r'|created|updated|modified|registered|joined'
+    r'|deadline|due_date|start_date|end_date'
+    r'|tanggal_|_date|_time|_at)',
     re.IGNORECASE
 )
+
+# Threshold minimal keberhasilan konversi pd.to_datetime (80%)
+TS_CONVERSION_THRESHOLD = 0.80
 
 
 def _is_id_column(series, col_name):
@@ -116,41 +131,19 @@ def _try_numeric_conversion(series):
 
 
 def _parsed_dates_plausible(parsed_series):
-    """
-    Validasi bahwa hasil parsing datetime masuk akal (bukan false positive).
-    False positive terjadi ketika pd.to_datetime() menginterpretasi angka kecil
-    (tahun, bulan, hari, durasi) sebagai epoch sekon → semuanya jadi tahun 1970.
-    """
     if parsed_series.empty:
         return False
     min_date = parsed_series.min()
     max_date = parsed_series.max()
-    # Jika semua hasil parse berada di tahun 1970, hampir pasti false positive
     if min_date.year == 1970 and max_date.year == 1970:
         return False
-    # Jika rentang kurang dari 1 sekon, dianggap noise
     if (max_date - min_date).total_seconds() < 1:
         return False
     return True
 
 
 def detect_time_series_cols(df):
-    """
-    Smart Time-Series column detector.
-    Memeriksa kolom berdasarkan:
-       1. Nama kolom mengandung keyword waktu (date, time, tgl, dll)
-          DAN berhasil dikonversi via pd.to_datetime()
-       2. Sudah bertipe datetime64
-       3. Numeric timestamp (epoch seconds)
-
-    Returns:
-        list[str]: Nama kolom yang terdeteksi sebagai time-series.
-    """
     ts_cols = []
-
-    # Keyword waktu — komponen kalender saja TIDAK termasuk (year, month, day, dll)
-    # karena kolom seperti "Year" / "Month" berisi angka kecil yang akan
-    # menghasilkan false positive saat di-parse sebagai datetime.
     TS_KEYWORDS = [
         'date', 'time', 'tanggal', 'waktu', 'tgl', 'dt_',
         'timestamp', 'datetime', 'created', 'updated',
@@ -160,36 +153,27 @@ def detect_time_series_cols(df):
         'start_date', 'end_date', 'due_date', 'birth',
         'lahir', 'expired', 'expiry',
     ]
-
     for col in df.columns:
         series = df[col]
         s = series.dropna()
         if s.empty:
             continue
-
-        # 1. Sudah datetime64
         if pd.api.types.is_datetime64_any_dtype(series):
             ts_cols.append(col)
             continue
-
-        # 2. Nama mengandung keyword waktu → coba parse
         col_lower = col.lower().replace(' ', '_').replace('-', '_')
         if any(kw in col_lower for kw in TS_KEYWORDS):
             sample = s.head(500)
             try:
                 parsed = pd.to_datetime(sample, errors='coerce')
                 if parsed.notna().mean() >= 0.40:
-                    # Validasi: pastikan bukan false positive (tahun, bulan, durasi)
                     if _parsed_dates_plausible(parsed):
                         ts_cols.append(col)
                         continue
             except Exception:
                 pass
-
-        # 3. Object/string — coba parse langsung (tanpa keyword waktu)
         if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
             sample = s.head(200)
-            # Lewati jika sample berisi angka semua (sudah ditangani numerik)
             if sample.dtype == 'object' and sample.str.match(r'^\d+\.?\d*$').mean() > 0.8:
                 continue
             try:
@@ -200,16 +184,12 @@ def detect_time_series_cols(df):
                         continue
             except Exception:
                 pass
-
-        # 4. Numeric — coba sebagai epoch seconds (hanya jika nilai masuk akal)
         if pd.api.types.is_numeric_dtype(series):
             vmax = float(s.max())
             vmin = float(s.min())
-            # Epoch seconds biasanya di atas 1e8 (tahun 1973+) dan di bawah 2e9 (tahun 2033)
-            # Epoch milliseconds di atas 1e11 dan di bawah 2e12
             is_plausible_epoch = (
-                (1e8 < vmax < 2e10) or          # seconds range
-                (1e11 < vmax < 2e13)             # milliseconds range
+                (1e8 < vmax < 2e10) or
+                (1e11 < vmax < 2e13)
             )
             if not is_plausible_epoch:
                 continue
@@ -223,23 +203,23 @@ def detect_time_series_cols(df):
                             break
                 except Exception:
                     continue
-
     return ts_cols
 
 
 def detect_data_types(df, time_series_cols=None):
     """
-    Klasifikasi kolom menjadi numerik dan kategorik secara cerdas.
-    
+    Klasifikasi kolom menjadi numerik, kategorik, dan time series secara cerdas.
+
     Args:
         df: DataFrame
         time_series_cols: List kolom time-series (akan dikeluarkan dari num & cat).
-    
+
     Returns:
-        num_cols (list): Kolom yang bermakna untuk analisis numerik/statistik
+        num_cols (list): Kolom bermakna untuk analisis numerik/statistik
         cat_cols (list): Kolom kategorik (termasuk numerik yang bersifat kategorik)
-    
-    Kolom yang dikeluarkan dari keduanya:
+        ts_cols  (list): Kolom time series / datetime (untuk menu Time Series saja)
+
+    Kolom yang dikeluarkan dari num_cols & cat_cols:
         - Kolom datetime / time-series
         - Kolom ID/index murni
         - Kolom dengan semua nilai kosong
@@ -248,6 +228,7 @@ def detect_data_types(df, time_series_cols=None):
     ts_set   = set(time_series_cols or [])
     num_cols = []
     cat_cols = []
+    ts_cols  = []
 
     for col in df.columns:
         series = df[col]
@@ -255,7 +236,7 @@ def detect_data_types(df, time_series_cols=None):
         # ── Skip kolom kosong total ───────────────────────────────────────────
         if series.isna().all():
             continue
-
+    
         # ── Skip kolom datetime / time-series ─────────────────────────────────
         if col in ts_set or pd.api.types.is_datetime64_any_dtype(series):
             continue
@@ -296,6 +277,16 @@ def detect_data_types(df, time_series_cols=None):
                 n_unique     = series.nunique()
                 unique_ratio = n_unique / max(n_rows, 1)
                 if unique_ratio > 0.95 and n_unique > 50:
+                    # Coba deteksi datetime sebelum di-skip — banyak unique bisa berarti tanggal
+                    sample = series.dropna().head(200)
+                    if not sample.empty:
+                        try:
+                            parsed, _ = _try_parse_dates(sample, threshold=0.40)
+                            if parsed is not None:
+                                ts_cols.append(col)
+                                continue
+                        except Exception:
+                            pass
                     continue
                 cat_cols.append(col)
             continue
@@ -304,4 +295,4 @@ def detect_data_types(df, time_series_cols=None):
         if hasattr(series, 'cat'):
             cat_cols.append(col)
 
-    return num_cols, cat_cols
+    return num_cols, cat_cols, ts_cols

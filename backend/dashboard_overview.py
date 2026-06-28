@@ -76,12 +76,48 @@ def _cat_insights(series):
         {'icon': 'fa-layer-group','text': f'Unique: {len(vc)} categories'},
     ]
 
+def _dist_insights(s):
+    if s.empty:
+        return []
+    skew = s.skew()
+    skew_dir = 'Positif (condong kanan)' if skew > 0.5 else ('Negatif (condong kiri)' if skew < -0.5 else 'Simetris')
+    return [
+        {'icon': 'fa-chart-bar',    'text': f'Standar Deviasi: {_fmt_num(s.std())}'},
+        {'icon': 'fa-arrows-alt-h', 'text': f'Skewness: {skew_dir} ({skew:.2f})'},
+    ]
+
+def _spread_insights(s):
+    if s.empty:
+        return []
+    q1 = s.quantile(0.25)
+    q3 = s.quantile(0.75)
+    iqr = q3 - q1
+    outlier_mask = (s < q1 - 1.5 * iqr) | (s > q3 + 1.5 * iqr)
+    n_outliers = outlier_mask.sum()
+    return [
+        {'icon': 'fa-align-center', 'text': f'Median: {_fmt_num(s.median())}'},
+        {'icon': 'fa-arrows-v',     'text': f'IQR: {_fmt_num(q1)} — {_fmt_num(q3)} ({_fmt_num(iqr)})'},
+        {'icon': 'fa-exclamation-triangle', 'text': f'Outlier: {n_outliers} titik'},
+    ]
+
 def _ts_insights(s):
     if s.empty:
         return []
+    arr = s.values
+    n = len(arr)
+    if n < 2:
+        return []
+    first_val = arr[0]
+    last_val = arr[-1]
+    change = last_val - first_val
+    direction = 'Meningkat \u2191' if change > 0 else ('Menurun \u2193' if change < 0 else 'Stabil \u2192')
+    mean_val = np.mean(arr)
+    cv = (np.std(arr) / mean_val * 100) if mean_val != 0 else 0
+    vol_label = 'Tinggi' if cv > 30 else ('Sedang' if cv > 10 else 'Rendah')
+    pct_change = (change / first_val * 100) if first_val != 0 else 0
     return [
-        {'icon': 'fa-chart-line', 'text': f'Mean: {_fmt_num(s.mean())}'},
-        {'icon': 'fa-arrow-up',   'text': f'Max: {_fmt_num(s.max())}'},
+        {'icon': 'fa-arrow-trend-up', 'text': f'Tren: {direction} ({pct_change:+.1f}%)'},
+        {'icon': 'fa-wave-square',    'text': f'Volatilitas: {vol_label} (CV={cv:.1f}%)'},
     ]
 
 def _pair_insights(df, cx, cy):
@@ -485,25 +521,32 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
             'title'  : title,
             'chart'  : chart_json,
             'insights': insights or [],
+            'all_insights': {},
         }
         result['viz_links'][key] = {
             'tab': viz_tab,
             'sub': viz_sub or 'numerical',
         }
 
-    def _reg(key, charts_dict, default_col):
-        td = _make_toggle(charts_dict, default_col)
-        if td:
-            result['toggle_data'][key] = td
-
-    def _add_insights(key, fn, dframe):
+    def _add_insights(key, fn, dframe, raw=False):
         td = result['toggle_data'].get(key)
         if not td:
             return
         td['insights'] = {}
         for opt in td['options']:
-            s = sanitize_series(dframe[opt], opt) if opt in dframe.columns else pd.Series(dtype=float)
+            if opt not in dframe.columns:
+                s = pd.Series(dtype=float)
+            elif raw:
+                s = dframe[opt]
+            else:
+                s = sanitize_series(dframe[opt], opt)
             td['insights'][opt] = fn(s)
+        result['slots'][key]['all_insights'] = td['insights']
+
+    def _reg(key, charts_dict, default_col):
+        td = _make_toggle(charts_dict, default_col)
+        if td:
+            result['toggle_data'][key] = td
 
     def _add_pair_insights(key, fn, dframe, pairs):
         td = result['toggle_data'].get(key)
@@ -514,6 +557,7 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
             parts = label.split(' vs ')
             if len(parts) == 2:
                 td['insights'][label] = fn(dframe, parts[0], parts[1])
+        result['slots'][key]['all_insights'] = td['insights']
 
     # ══════════════════════════════════════════════════════════════════
     # BARIS TENGAH
@@ -528,6 +572,7 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
           title   = f'Pareto — {default_cat0}' if default_cat0 else '',
           viz_tab = 'visualizations',
           viz_sub = 'categorical')
+    _add_insights('ov_hbar', _cat_insights, df, raw=True)
 
     # ov_center: Pie/Donut — toggle semua cat_cols
     pie_charts = _build_pie_charts(df, cat_cols)
@@ -537,16 +582,19 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
           title   = f'Composition — {default_cat0}' if default_cat0 else '',
           viz_tab = 'visualizations',
           viz_sub = 'categorical')
+    _add_insights('ov_center', _cat_insights, df, raw=True)
 
     # ov_top_right: TS (fixed) → Scatter (toggle X & Y) → SKIP
     has_ts = bool(dt_cols and num_cols)
     if has_ts:
         # TS: chart tunggal, tidak ada toggle kolom
         ts_chart = _build_top_right_ts(df, num_cols, dt_cols)
+        ts_ins = _ts_insights(sanitize_series(df[num_cols[0]], num_cols[0])) if ts_chart and num_cols else []
         _slot('ov_top_right', ts_chart,
               title   = f'Trend — {num_cols[0]}' if ts_chart and num_cols else '',
               viz_tab = 'timeseries',
-              viz_sub = None)
+              viz_sub = None,
+              insights = ts_ins)
         # Tidak perlu toggle_data untuk slot ini (TS fixed)
     elif len(num_cols) >= 2:
         # Scatter dengan toggle X dan Y terpisah
@@ -583,6 +631,7 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
           title   = f'Distribution — {default_num0}' if default_num0 else '',
           viz_tab = 'visualizations',
           viz_sub = 'numerical')
+    _add_insights('ov_vbar_left', _num_insights, df)
 
     # ov_area_bottom: Boxplot + toggle semua num_cols
     # Default: num_cols[1] jika ada (beda dari histogram default di vbar_left)
@@ -594,6 +643,7 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
           title   = f'Spread — {default_num1}' if default_num1 else '',
           viz_tab = 'visualizations',
           viz_sub = 'numerical')
+    _add_insights('ov_area_bottom', _num_insights, df)
 
     # ov_vbar_right: Bar Chart + toggle semua cat_cols
     vbar_right = _build_vbar_right_charts(df, cat_cols)
@@ -628,9 +678,9 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
               ts_line_charts.get(default_ts_col) if ts_line_charts else None,
               title=f'Trend — {default_ts_col}' if default_ts_col else '',
               viz_tab='timeseries', viz_sub='line',
-              insights=_num_insights(sanitize_series(df[default_ts_col], default_ts_col)) if default_ts_col else None)
+              insights=_ts_insights(sanitize_series(df[default_ts_col], default_ts_col)) if default_ts_col else None)
         _reg('ov_ts_line', ts_line_charts, default_ts_col)
-        _add_insights('ov_ts_line', _num_insights, df)
+        _add_insights('ov_ts_line', _ts_insights, df)
     else:
         _slot('ov_ts_line', None, '', 'timeseries', 'line')
 
@@ -646,41 +696,41 @@ def generate_overview_dashboard(df, num_cols, cat_cols, dt_cols=None, metrics=No
     else:
         _slot('ov_scatter', None, '', 'visualizations', 'bivariate')
 
-    # ov_pie: same chart data as ov_center
+    # ov_pie: same chart data as ov_center — reuse insights
     _slot('ov_pie',
           pie_charts.get(default_cat0) if pie_charts else None,
           title=f'Composition — {default_cat0}' if default_cat0 else '',
           viz_tab='visualizations', viz_sub='categorical',
           insights=_cat_insights(df[default_cat0]) if default_cat0 and default_cat0 in df.columns else None)
     _reg('ov_pie', pie_charts, default_cat0)
-    _add_insights('ov_pie', _cat_insights, df)
+    _add_insights('ov_pie', _cat_insights, df, raw=True)
 
-    # ov_bar → Pareto chart (replaces redundant plain bar; shows 80/20)
+    # ov_bar → same as ov_hbar — reuse insights
     _slot('ov_bar',
           pareto_charts.get(default_cat0) if pareto_charts else None,
           title=f'Pareto — {default_cat0}' if default_cat0 else '',
           viz_tab='visualizations', viz_sub='categorical',
           insights=_cat_insights(df[default_cat0]) if default_cat0 and default_cat0 in df.columns else None)
     _reg('ov_bar', pareto_charts, default_cat0)
-    _add_insights('ov_bar', _cat_insights, df)
+    _add_insights('ov_bar', _cat_insights, df, raw=True)
 
-    # ov_histogram: same chart data as ov_vbar_left
+    # ov_histogram: distribution insights (skewness, std)
     default_hist_col = default_num0
     _slot('ov_histogram',
           vbar_left.get(default_hist_col) if vbar_left else None,
           title=f'Distribution — {default_hist_col}' if default_hist_col else '',
           viz_tab='visualizations', viz_sub='numerical',
-          insights=_num_insights(sanitize_series(df[default_hist_col], default_hist_col)) if default_hist_col else None)
+          insights=_dist_insights(sanitize_series(df[default_hist_col], default_hist_col)) if default_hist_col else None)
     _reg('ov_histogram', vbar_left, default_hist_col)
-    _add_insights('ov_histogram', _num_insights, df)
+    _add_insights('ov_histogram', _dist_insights, df)
 
-    # ov_boxplot: same chart data as ov_area_bottom
+    # ov_boxplot: spread insights (median, IQR, outliers)
     _slot('ov_boxplot',
           boxplot_charts.get(default_num1) if boxplot_charts else None,
           title=f'Spread — {default_num1}' if default_num1 else '',
           viz_tab='visualizations', viz_sub='numerical',
-          insights=_num_insights(sanitize_series(df[default_num1], default_num1)) if default_num1 else None)
+          insights=_spread_insights(sanitize_series(df[default_num1], default_num1)) if default_num1 else None)
     _reg('ov_boxplot', boxplot_charts, default_num1)
-    _add_insights('ov_boxplot', _num_insights, df)
+    _add_insights('ov_boxplot', _spread_insights, df)
 
     return result

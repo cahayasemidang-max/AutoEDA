@@ -322,6 +322,28 @@
     font-size: .72rem; font-weight: 600; color: var(--muted);
 }
 
+/* ── Time Series Sidebar Insights ── */
+.ts-insight-item {
+    padding: 10px 14px; margin-bottom: 6px;
+    border-left: 3px solid var(--blue);
+    background: rgba(67,24,255,.04);
+    border-radius: 0 6px 6px 0;
+}
+.ts-insight-item[data-insight-type="primary"] { border-left-color: var(--blue); background: rgba(67,24,255,.04); }
+.ts-insight-item[data-insight-type="warning"] { border-left-color: #f5a623; background: rgba(245,166,35,.06); }
+.ts-insight-item[data-insight-type="success"] { border-left-color: var(--green); background: rgba(78,205,196,.06); }
+.ts-insight-item[data-insight-type="info"]    { border-left-color: var(--muted); background: rgba(128,128,128,.04); }
+.ts-insight-item[data-insight-type="muted"]   { border-left-color: #666; background: rgba(100,100,100,.04); opacity: .8; }
+.ts-insight-header {
+    font-size: .78rem; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 6px; margin-bottom: 3px;
+}
+.ts-insight-header i { width: 16px; text-align: center; }
+.ts-insight-desc {
+    font-size: .72rem; color: var(--muted); line-height: 1.5;
+    padding-left: 22px;
+}
+
 /* ── Smart Insight card under each chart ── */
 .ov-smart-insight {
     padding: 8px 12px 10px;
@@ -1347,6 +1369,7 @@
             <span class="fmt-badge txt"><i class="fas fa-file-alt"></i> <span data-i18n="upload_fmt_txt">TXT</span></span>
         </div>
         <form id="upload-form" action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="modern-dropzone" id="dropzone"
                  ondragover="handleDragOver(event)"
                  ondragleave="handleDragLeave(event)"
@@ -2774,7 +2797,11 @@ var DCleaning = (function () {
         fetch(BASE+'/preview-table/'+FILENAME).then(function(r){ return r.json(); }).then(function(d){
             if (!d.ok) return;
             var cleanEl=document.getElementById('preview-clean-table');
-            if (cleanEl) { var w=cleanEl.closest('.table-scroll-wrapper'); if(w) w.innerHTML=d.html; }
+            if (cleanEl) {
+                var w=cleanEl.closest('.table-scroll-wrapper');
+                if(w) w.innerHTML=d.html;
+                if (typeof adjustResponsiveTables === 'function') adjustResponsiveTables();
+            }
             var statusEl=document.getElementById('preview-status-label');
             if (statusEl) statusEl.innerHTML=d.is_cleaned?'<span class="badge badge-success" style="font-size:.78rem;padding:5px 12px;"><i class="fas fa-check-circle"></i> Showing Cleaned Data</span>':'<span class="badge badge-warning" style="font-size:.78rem;padding:5px 12px;"><i class="fas fa-exclamation-triangle"></i> Showing Raw Data</span>';
         }).catch(function(err){ console.error('[_refreshPreviewTab] Error:', err); });
@@ -3199,6 +3226,28 @@ var DCleaning = (function () {
             <div id="plot-ts-overview" class="chart-area" style="min-height:540px;"></div>
         </div>
     </div>
+    <div id="ts-insights-section" class="mb-4">
+        <div class="card chart-card">
+            <div class="card-header-clean">
+                <h4><i class="fas fa-lightbulb" style="color:#ffce20;"></i> <span data-i18n="ts_insights_title">Time Series Insights</span></h4>
+            </div>
+            <div id="ts-insights-container" class="card-body">
+                {% if ts_insights_list %}
+                {% for ins in ts_insights_list %}
+                <div class="ts-insight-item" data-insight-type="{{ ins.type }}">
+                    <div class="ts-insight-header">
+                        <i class="fas {{ ins.icon }}"></i>
+                        <strong>{{ ins.title }}</strong>
+                    </div>
+                    <div class="ts-insight-desc">{{ ins.desc }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-muted" style="padding:12px;" data-i18n="ts_no_insights">No insights available. Select a numeric column to generate insights.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
     {% endif %}
 {% endif %}
 </div>
@@ -3327,10 +3376,225 @@ var DCleaning = (function () {
 </script>
 
 
+<!-- ══════════════ TAB 9: HIGH REPORT ══════════════ -->
+<div id="tab-report" class="tab-content" style="display:none;">
+  <div class="report-container">
+    <!-- Watermark -->
+    <div class="report-watermark">Kelompok 2 ITSB</div>
+
+    <!-- Hero Header -->
+    <div class="report-hero">
+      <h1><i class="fas fa-file-alt"></i> High-Quality Report</h1>
+      <p>Laporan lengkap analisis data otomatis — DS Generator Kelompok 2 ITSB</p>
+      <span class="report-date" id="report-date-badge"></span>
+    </div>
+
+    <!-- Section A: Deskripsi Web -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-globe"></i> Deskripsi Web</div>
+      <div class="report-card">
+        <h4>Auto-EDA Dashboard</h4>
+        <p>
+          Aplikasi <strong>DS Generator</strong> adalah platform web interaktif untuk analisis data eksploratif (Exploratory Data Analysis) secara otomatis.
+          Dibangun menggunakan <strong>Flask</strong> (Python) sebagai backend, <strong>Jinja2</strong> sebagai template engine, dan <strong>Plotly.js</strong> untuk visualisasi chart yang dinamis.
+          Fitur utama meliputi: upload dataset (CSV/XLSX), data cleaning otomatis, ringkasan statistik deskriptif, visualisasi interaktif, deteksi time series, hingga generation insight berbasis AI.
+          Dashboard ini dirancang agar pengguna tanpa latar belakang statistik kuat pun dapat memperoleh insight dari data secara cepat dan akurat.
+        </p>
+      </div>
+    </div>
+
+    <!-- Section B: Members -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-users"></i> Anggota Tim</div>
+      <div class="report-member-grid">
+        {% for m in team_members %}
+        <div class="report-member-card">
+          <img src="{{ m.photo }}" alt="{{ m.name }}" onerror="this.src='https://ui-avatars.com/api/?name={{ m.name | urlencode }}&size=72&background=4318ff&color=fff';">
+          <h4>{{ m.name }}</h4>
+          <div class="nim">NIM: {{ m.nim }}</div>
+          <span class="role-tag">{{ m.role }}</span>
+          <div class="member-links">
+            <a href="{{ m.github }}" target="_blank" title="GitHub"><i class="fab fa-github"></i></a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Section C: Deskripsi Data -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-database"></i> Deskripsi Data</div>
+      <div class="report-data-grid">
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-file-csv"></i></div>
+          <div class="rdi-value">{{ dataset_info.name }}</div>
+          <div class="rdi-label">Dataset</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-list-ol"></i></div>
+          <div class="rdi-value">{{ metrics.total_rows }}</div>
+          <div class="rdi-label">Total Rows</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-columns"></i></div>
+          <div class="rdi-value">{{ metrics.total_columns }}</div>
+          <div class="rdi-label">Total Columns</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-weight-hanging"></i></div>
+          <div class="rdi-value">{{ dataset_info.size }}</div>
+          <div class="rdi-label">File Size</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-hashtag"></i></div>
+          <div class="rdi-value">{{ num_cols | length }}</div>
+          <div class="rdi-label">Numeric Cols</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-font"></i></div>
+          <div class="rdi-value">{{ cat_cols | length }}</div>
+          <div class="rdi-label">Categorical Cols</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-clock"></i></div>
+          <div class="rdi-value">{{ dt_cols | length }}</div>
+          <div class="rdi-label">Time Series Cols</div>
+        </div>
+        <div class="report-data-item">
+          <div class="rdi-icon"><i class="fas fa-calendar-alt"></i></div>
+          <div class="rdi-value">{{ dataset_info.time }}</div>
+          <div class="rdi-label">Upload Time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section D: Visualisasi -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-chart-bar"></i> Visualisasi</div>
+      <div class="report-viz-grid" id="report-viz-grid">
+        <div class="report-viz-slot" id="report-viz-1"><div class="loading-spinner" style="padding:40px;text-align:center;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--muted);"></i></div></div>
+        <div class="report-viz-slot" id="report-viz-2"><div class="loading-spinner" style="padding:40px;text-align:center;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--muted);"></i></div></div>
+        <div class="report-viz-slot" id="report-viz-3"><div class="loading-spinner" style="padding:40px;text-align:center;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--muted);"></i></div></div>
+        <div class="report-viz-slot" id="report-viz-4"><div class="loading-spinner" style="padding:40px;text-align:center;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--muted);"></i></div></div>
+      </div>
+    </div>
+
+    <!-- Section E: Insight -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-lightbulb"></i> Insight</div>
+      <div id="report-insights-container">
+        {% set _insights = insights_en if insights_en else [] %}
+        {% for ins in _insights %}
+        <div class="report-insight" style="border-left-color: var(--{{ ins.type }}, var(--blue));">
+          <div class="ri-header">
+            <div class="ri-icon" style="color: var(--{{ ins.type }}, var(--blue)); background: rgba(67,24,255,.08);">
+              <i class="fas {{ ins.icon }}"></i>
+            </div>
+            <h4>{{ ins.title }}</h4>
+          </div>
+          <p>{{ ins.desc }}</p>
+        </div>
+        {% endfor %}
+        {% if not _insights %}
+        <div class="report-card"><p>Belum ada insight yang dihasilkan. Pastikan data sudah bersih untuk mendapatkan insight otomatis.</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Section F: Rekomendasi -->
+    <div class="report-section">
+      <div class="report-section-title"><i class="fas fa-tasks"></i> Rekomendasi</div>
+      {% if recommendations %}
+        {% for rec in recommendations %}
+        <div class="report-rec priority-{{ rec.priority }}">
+          <div class="rec-icon"><i class="fas {{ rec.icon }}"></i></div>
+          <div class="rec-body">
+            <h4>{{ rec.title }}</h4>
+            <p>{{ rec.desc }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="report-card"><p>Tidak ada rekomendasi khusus. Data sudah dalam kondisi baik!</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Report Footer -->
+    <div style="text-align:center;padding:32px 0 16px;position:relative;z-index:1;">
+      <p style="font-size:.75rem;color:var(--muted);">
+        <i class="fas fa-shield-alt"></i> Generated by <strong>DS Generator — Kelompok 2 ITSB</strong> &middot; {{ dataset_info.time }}
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Report Tab: Render overview charts & date badge ── */
+(function() {
+    var _reportRendered = false;
+
+    function renderReportCharts() {
+        if (_reportRendered) return;
+        _reportRendered = true;
+
+        // Date badge
+        var dateBadge = document.getElementById('report-date-badge');
+        if (dateBadge) {
+            var now = new Date();
+            dateBadge.textContent = '📅 ' + now.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+        }
+
+        // Render overview charts into report viz slots
+        var slots = ['report-viz-1','report-viz-2','report-viz-3','report-viz-4'];
+        var slotKeys = [];
+
+        if (typeof overviewPayload !== 'undefined' && overviewPayload && overviewPayload.slots) {
+            var keys = Object.keys(overviewPayload.slots);
+            for (var k = 0; k < keys.length && slotKeys.length < 4; k++) {
+                var s = overviewPayload.slots[keys[k]];
+                if (s && s.chart) slotKeys.push(keys[k]);
+            }
+        }
+
+        var plotlyLayout = { margin:{t:30,b:40,l:50,r:20}, paper_bgcolor:'transparent', plot_bgcolor:'transparent', font:{color: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#333', size:11}, height:280, autosize:true };
+        var plotlyCfg = { displayModeBar:false, responsive:true };
+
+        for (var i = 0; i < slots.length; i++) {
+            var el = document.getElementById(slots[i]);
+            if (!el) continue;
+            if (i < slotKeys.length) {
+                var slotData = overviewPayload.slots[slotKeys[i]];
+                el.innerHTML = '';
+                try {
+                    var chartObj = JSON.parse(JSON.stringify(slotData.chart));
+                    if (chartObj.layout) {
+                        Object.assign(chartObj.layout, { paper_bgcolor:'transparent', plot_bgcolor:'transparent', height:280, autosize:true });
+                        if (chartObj.layout.font) chartObj.layout.font.color = plotlyLayout.font.color;
+                    }
+                    Plotly.newPlot(el, chartObj.data, chartObj.layout, plotlyCfg);
+                } catch(e) {
+                    el.innerHTML = '<p style="text-align:center;color:var(--muted);padding:40px 0;"><i class="fas fa-chart-area"></i> Chart unavailable</p>';
+                }
+            } else {
+                el.innerHTML = '<p style="text-align:center;color:var(--muted);padding:40px 0;"><i class="fas fa-info-circle"></i> No chart available</p>';
+            }
+        }
+    }
+
+    // Expose for switchTab hook
+    window._renderReportTab = renderReportCharts;
+})();
+</script>
+
+
 <!-- ══════════════ SCRIPTS ══════════════ -->
 <script src="{{ url_for('static', filename='js/dashboardOverview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/visualizationsMaster.js') }}"></script>
 <script src="{{ url_for('static', filename='js/aiSettings.js') }}"></script>
+
+<script id="plots-json-data" type="application/json">{{ plots | tojson }}</script>
+<script id="overview-json-data" type="application/json">{{ overview | tojson }}</script>
+<script id="viz-prerendered-json-data" type="application/json">{{ viz_prerendered | tojson }}</script>
 
 <script>
 function showToast(msg, type) {
@@ -3397,6 +3661,7 @@ function triggerToastAfterReload(msg, type) {
 
 var plotsData       = null;
 var overviewPayload = null;
+var vizPreRendered  = null;
 var vizMeta = {
     filename : {{ filename | tojson }},
     num_cols : {{ num_cols | tojson }},
@@ -3405,11 +3670,22 @@ var vizMeta = {
     has_ts   : {{ has_ts   | tojson }},
 };
 
-try { plotsData       = {{ plots    | tojson | safe }}; } catch(e) { console.error('plots data error:', e); }
-try { overviewPayload = {{ overview | tojson | safe }}; } catch(e) { console.error('overview data error:', e); }
-try { vizPreRendered  = {{ viz_prerendered | tojson | safe }}; } catch(e) { console.error('viz prerender error:', e); }
+(function(){
+    try {
+        var el = document.getElementById('plots-json-data');
+        if (el) plotsData = JSON.parse(el.textContent);
+    } catch(e) { console.error('plots data error:', e); }
+    try {
+        var el = document.getElementById('overview-json-data');
+        if (el) overviewPayload = JSON.parse(el.textContent);
+    } catch(e) { console.error('overview data error:', e); }
+    try {
+        var el = document.getElementById('viz-prerendered-json-data');
+        if (el) vizPreRendered = JSON.parse(el.textContent);
+    } catch(e) { console.error('viz prerender error:', e); }
+})();
 
-var datasetContext = "Filename: {{ filename }}, Rows: {{ metrics.total_rows }}, Cols: {{ metrics.total_columns }}, Numeric: {{ num_cols|join(', ') }}, Categorical: {{ cat_cols|join(', ') }}{% if has_ts %}, DateTime: {{ dt_cols|join(', ') }}{% endif %}";
+var datasetContext = "Filename: " + {{ filename | tojson }} + ", Rows: " + {{ metrics.total_rows | tojson }} + ", Cols: " + {{ metrics.total_columns | tojson }} + ", Numeric: " + {{ (num_cols|join(', ')) | tojson }} + ", Categorical: " + {{ (cat_cols|join(', ')) | tojson }}{% if has_ts %} + ", DateTime: " + {{ (dt_cols|join(', ')) | tojson }}{% endif %};
 
 var TS_CHART_MAP = { 'ts-line':'ts_line', 'ts-trend':'ts_trend', 'ts-ma':'ts_ma', 'ts-rolling':'ts_rolling', 'ts-overview':'ts_overview' };
 var _tsRendered = {};
@@ -3458,6 +3734,29 @@ function switchTsTab(tab) {
 /* ── Time Series column dropdown ── */
 var _tsColumnData = {};
 var _tsDefaultNumCol = {{ (ts_meta.num_col if ts_meta else '""') | tojson }};
+var _tsInitialInsightsHtml = '';
+
+(function() {
+    var ic = document.getElementById('ts-insights-container');
+    if (ic) _tsInitialInsightsHtml = ic.innerHTML;
+})();
+
+function renderTsInsights(insights) {
+    var container = document.getElementById('ts-insights-container');
+    if (!container) return;
+    if (!insights || insights.length === 0) {
+        container.innerHTML = '<div class="text-muted" style="padding:12px;">' + (typeof I18N !== 'undefined' ? I18N.t('ts_no_insights') : 'No insights available.') + '</div>';
+        return;
+    }
+    var html = '';
+    insights.forEach(function(ins) {
+        html += '<div class="ts-insight-item" data-insight-type="' + (ins.type || 'info') + '">'
+             + '<div class="ts-insight-header"><i class="fas ' + (ins.icon || 'fa-circle') + '"></i> <strong>' + (ins.title || '') + '</strong></div>'
+             + '<div class="ts-insight-desc">' + (ins.desc || '') + '</div>'
+             + '</div>';
+    });
+    container.innerHTML = html;
+}
 
 function switchTsColumn(numCol) {
     var select = document.getElementById('ts-num-col-select');
@@ -3474,6 +3773,10 @@ function switchTsColumn(numCol) {
         Object.keys(_tsRendered).forEach(function(k){ delete _tsRendered[k]; });
         var visibleTab = document.querySelector('.ts-subtab-content[style*="block"]') || document.getElementById('ts-line');
         if (visibleTab) { var tabId = visibleTab.id.replace('ts-', ''); switchTsTab(tabId); }
+        if (_tsInitialInsightsHtml) {
+            var ic = document.getElementById('ts-insights-container');
+            if (ic) ic.innerHTML = _tsInitialInsightsHtml;
+        }
         select.disabled = false;
         return;
     }
@@ -3492,6 +3795,7 @@ function switchTsColumn(numCol) {
                 var perEl = document.getElementById('ts-meta-period');
                 if (perEl) perEl.textContent = (data.meta.date_start || '') + ' ' + (data.meta.date_end ? '\u2192 ' + data.meta.date_end : '');
             }
+            if (data.insights) renderTsInsights(data.insights);
             var visibleTab = document.querySelector('.ts-subtab-content[style*="block"]') || document.getElementById('ts-line');
             if (visibleTab) { var tabId = visibleTab.id.replace('ts-', ''); switchTsTab(tabId); }
             select.disabled = false;

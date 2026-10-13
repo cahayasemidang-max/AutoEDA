@@ -134,7 +134,12 @@ class CleaningSession:
         max_hist = self._get_max_history(df_before)
         if len(self._history) >= max_hist:
             # Pertahankan initial (index 0) + trim dari index 1
-            self._history = [self._history[0]] + self._history[-(max_hist - 2):]
+            # Pertahankan history[0] (state awal/raw) + (max_hist-2) entri terakhir,
+            # sehingga setelah append snap baru total tetap = max_hist.
+            # max_hist=2 → tail=0 → hanya [h0], undo hanya ke raw (tradeoff file >500MB)
+            # max_hist=3 → tail=1 → [h0, h_last], max_hist=5 → tail=3 → [h0, h-3,h-2,h-1]
+            tail = max(0, max_hist - 2)
+            self._history = [self._history[0]] + (self._history[-tail:] if tail > 0 else [])
 
         snap = _Snapshot(
             df        = df_after,
@@ -480,14 +485,20 @@ def _save_session(session: CleaningSession):
         return
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        # For large DataFrames, use parquet instead of pickle for efficiency
         try:
             mem_mb = session.df_current.memory_usage(deep=True).sum() / (1024 * 1024)
             if mem_mb > 50:
-                ext = '.parquet'
-                data_path = path.replace('.pkl', ext)
-                session.df_current.to_parquet(data_path, index=False)
-                # Save just the metadata without DataFrame
+                # Bug 2.3 fix: simpan setiap snapshot df sebagai parquet terpisah
+                # sehingga undo setelah reload bisa kembali ke state yang benar.
+                snap_paths = []
+                for i, snap in enumerate(session._history):
+                    snap_path = path.replace('.pkl', f'_snap{i}.parquet')
+                    try:
+                        snap.df.to_parquet(snap_path, index=False)
+                        snap_paths.append(snap_path)
+                    except Exception as snap_err:
+                        print(f"[cleaning_engine] Snap save error idx={i}: {snap_err}")
+                        snap_paths.append(None)
                 meta = {
                     'session_key': session._session_key,
                     'filename': session.filename,
@@ -498,7 +509,7 @@ def _save_session(session: CleaningSession):
                          'summary': s.summary, 'timestamp': s.timestamp}
                         for s in session._history
                     ],
-                    'data_path': data_path,
+                    'snap_paths': snap_paths,   # per-snapshot, gantikan 'data_path'
                 }
                 with open(path, 'wb') as f:
                     pickle.dump(meta, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -520,14 +531,41 @@ def _load_session(session_key: str) -> CleaningSession | None:
     try:
         with open(path, 'rb') as f:
             data = pickle.load(f)
-        # Check if it's a metadata-only save (large DataFrame)
+        # Format baru: 'snap_paths' (per-snapshot parquet) — Bug 2.3 fix
+        if isinstance(data, dict) and 'snap_paths' in data:
+            meta = data
+            snap_paths = meta['snap_paths']
+            history_labels = meta['history_labels']
+            # Load snapshot terakhir sebagai df_current untuk inisialisasi sesi
+            last_valid_path = next(
+                (p for p in reversed(snap_paths) if p and os.path.exists(p)), None
+            )
+            df_current = pd.read_parquet(last_valid_path) if last_valid_path else pd.DataFrame()
+            sess = CleaningSession(df_current, meta['filename'], session_key=meta['session_key'])
+            sess.is_cleaned = meta['is_cleaned']
+            sess.ignored_cols = meta['ignored_cols']
+            # Rekonstruksi history — tiap snapshot baca df-nya sendiri
+            sess._history = []
+            for i, h in enumerate(history_labels):
+                snap = _Snapshot.__new__(_Snapshot)
+                for k, v in h.items():
+                    setattr(snap, k, v)
+                snap_path = snap_paths[i] if i < len(snap_paths) else None
+                if snap_path and os.path.exists(snap_path):
+                    snap.df = pd.read_parquet(snap_path)
+                else:
+                    # Fallback: gunakan df_current jika snap file hilang
+                    snap.df = df_current
+                sess._history.append(snap)
+            return sess
+        # Format lama: 'data_path' (hanya df_current) — backward compat
         if isinstance(data, dict) and 'data_path' in data:
             meta = data
             df = pd.read_parquet(meta['data_path'])
             sess = CleaningSession(df, meta['filename'], session_key=meta['session_key'])
             sess.is_cleaned = meta['is_cleaned']
             sess.ignored_cols = meta['ignored_cols']
-            # Overwrite history with reconstructed snapshots
+            # Semua snapshot dapat df yang sama (perilaku lama, undo terbatas)
             sess._history = []
             for h in meta['history_labels']:
                 snap = _Snapshot.__new__(_Snapshot)
@@ -546,16 +584,38 @@ def _delete_session_disk(session_key: str):
     path = _get_session_path(session_key)
     if path and os.path.exists(path):
         try:
+            # Baca meta dulu untuk hapus snap files jika ada
+            try:
+                with open(path, 'rb') as f:
+                    meta = pickle.load(f)
+                if isinstance(meta, dict):
+                    # Format baru: hapus tiap snap parquet
+                    for sp in meta.get('snap_paths', []):
+                        if sp and os.path.exists(sp):
+                            try:
+                                os.remove(sp)
+                            except Exception:
+                                pass
+                    # Format lama: hapus single data_path
+                    old_dp = meta.get('data_path')
+                    if old_dp and os.path.exists(old_dp):
+                        try:
+                            os.remove(old_dp)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             os.remove(path)
         except Exception as e:
             print(f"[cleaning_engine] Delete error for {session_key}: {e}")
-    # Also clean up parquet if exists
-    parquet_path = path.replace('.pkl', '.parquet') if path else None
-    if parquet_path and os.path.exists(parquet_path):
-        try:
-            os.remove(parquet_path)
-        except Exception:
-            pass
+    # Fallback: hapus file .parquet lama (format sebelum Bug 2.3 fix)
+    if path:
+        parquet_path = path.replace('.pkl', '.parquet')
+        if os.path.exists(parquet_path):
+            try:
+                os.remove(parquet_path)
+            except Exception:
+                pass
 
 
 # ─── Session cleanup ──────────────────────────────────────────────────────────

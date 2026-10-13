@@ -86,23 +86,44 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 _dashboard_cache_dir = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], '_dashboard_cache')
 os.makedirs(_dashboard_cache_dir, exist_ok=True)
 
+# Bump this version whenever the ctx schema changes (adds/removes required keys).
+# Any cached file without a matching version will be discarded and regenerated.
+_CACHE_VERSION = 4
+_CACHE_REQUIRED_KEYS = {'overview', 'viz_prerendered', 'insights', 'metrics', 'num_cols', 'cat_cols'}
+
 def _cache_path(filename):
     safe = secure_filename(filename)
-    return os.path.join(_dashboard_cache_dir, safe + '.json')
+    # Bug 1.1 fix: sertakan user_id dalam key supaya cache tidak bocor antar user
+    uid = str(session.get('user_id', 'anon'))
+    return os.path.join(_dashboard_cache_dir, f"{uid}__{safe}.json")
 
 def _load_dashboard_cache(filename):
     path = _cache_path(filename)
     if os.path.exists(path):
         try:
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
+                data = json.load(f)
+            # Validate cache version and required keys
+            if not isinstance(data, dict):
+                raise ValueError('not a dict')
+            if data.get('_cache_version') != _CACHE_VERSION:
+                raise ValueError(f"stale version: {data.get('_cache_version')} != {_CACHE_VERSION}")
+            if not _CACHE_REQUIRED_KEYS.issubset(data.keys()):
+                missing = _CACHE_REQUIRED_KEYS - data.keys()
+                raise ValueError(f"missing keys: {missing}")
+            return data
+        except Exception as e:
+            print(f"[Cache] invalid/stale cache for {filename}: {e} — regenerating.")
+            try:
+                os.remove(path)
+            except Exception:
+                pass
     return None
 
 def _save_dashboard_cache(filename, ctx):
     path = _cache_path(filename)
     try:
+        ctx['_cache_version'] = _CACHE_VERSION
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(ctx, f, ensure_ascii=False)
     except Exception as e:
@@ -138,6 +159,17 @@ def login_required(f):
         if 'user_id' not in session:
             flash('Please sign in to continue.', 'info')
             return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def login_required_api(f):
+    """Seperti login_required, tapi mengembalikan JSON 401 (bukan redirect HTML).
+    Dipakai di endpoint /api/* yang dipanggil oleh JS dengan .then(r => r.json())."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"ok": False, "error": "Sesi login sudah berakhir. Silakan login ulang."}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -195,7 +227,11 @@ def _get_or_init_session(filename):
     if not safe_name or safe_name != filename:
         return None, 'Nama file tidak valid.'
 
-    sess = get_session(safe_name)
+    # Bug 1.1 fix: key session menyertakan user_id supaya tidak bocor antar user
+    user_id = session.get('user_id', 'anon')
+    session_key = f"{user_id}:{safe_name}"
+
+    sess = get_session(session_key)
     if sess is not None:
         return sess, None
 
@@ -228,7 +264,7 @@ def _get_or_init_session(filename):
     if df_raw is None:
         return None, 'Gagal membaca dataset.'
 
-    sess = reset_session(safe_name, df_raw)
+    sess = reset_session(session_key, df_raw)
     return sess, None
 
 
@@ -269,7 +305,7 @@ def auth():
 @app.route('/login', methods=['GET', 'POST'])
 @csrf_required
 def login():
-    if current_user() and request.method == 'GET':
+    if session.get('user_id') and request.method == 'GET':
         return redirect(url_for('upload_file'))
 
     next_url = request.args.get('next') or url_for('upload_file')
@@ -612,8 +648,8 @@ def _get_dashboard_context(filename):
     # ── Auto-generated recommendations for the Report tab ───────────────────
     recommendations = []
     # Based on data quality
-    if quality_report and hasattr(quality_report, 'get'):
-        warnings = quality_report.get('warnings', []) if isinstance(quality_report, dict) else []
+    if isinstance(quality_report, dict):
+        warnings = quality_report.get('warnings', [])
         if warnings:
             recommendations.append({
                 'icon': 'fa-broom',
@@ -1258,6 +1294,7 @@ def reporting_page(filename):
 # ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
 
 @app.route('/api/cleaning/status/<filename>')
+@login_required_api
 @api_error_handler
 def api_cleaning_status(filename):
     """
@@ -1283,6 +1320,7 @@ def api_cleaning_status(filename):
 
 
 @app.route('/api/cleaning/preview/<filename>', methods=['POST'])
+@login_required_api
 @api_error_handler
 def api_cleaning_preview(filename):
     """
@@ -1305,6 +1343,7 @@ def api_cleaning_preview(filename):
 
 
 @app.route('/api/cleaning/apply/<filename>', methods=['POST'])
+@login_required_api
 @api_error_handler
 def api_cleaning_apply(filename):
     """
@@ -1328,6 +1367,7 @@ def api_cleaning_apply(filename):
 
 
 @app.route('/api/cleaning/quickfix/<filename>', methods=['POST'])
+@login_required_api
 @api_error_handler
 def api_cleaning_quickfix(filename):
     """
@@ -1343,6 +1383,7 @@ def api_cleaning_quickfix(filename):
 
 
 @app.route('/api/cleaning/undo/<filename>', methods=['POST'])
+@login_required_api
 @api_error_handler
 def api_cleaning_undo(filename):
     """
@@ -1358,6 +1399,7 @@ def api_cleaning_undo(filename):
 
     if index is not None:
         result = sess.undo_to(int(index))
+        _invalidate_dashboard_cache(filename)
     else:
         result = sess.undo()
         _invalidate_dashboard_cache(filename)
@@ -1365,6 +1407,7 @@ def api_cleaning_undo(filename):
 
 
 @app.route('/api/cleaning/reset/<filename>', methods=['POST'])
+@login_required_api
 @api_error_handler
 def api_cleaning_reset(filename):
     """POST reset ke raw data."""
@@ -1378,6 +1421,7 @@ def api_cleaning_reset(filename):
 
 
 @app.route('/api/cleaning/preview-table/<filename>')
+@login_required_api
 @api_error_handler
 def api_cleaning_preview_table(filename):
     """
@@ -1406,6 +1450,7 @@ def api_cleaning_preview_table(filename):
 
 
 @app.route('/api/cleaning/columns/<filename>')
+@login_required_api
 @api_error_handler
 def api_cleaning_columns(filename):
     """

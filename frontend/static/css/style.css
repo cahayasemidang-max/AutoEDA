@@ -3234,6 +3234,7 @@ html, body {
 @media (max-width: 480px) {
   .auth-card { padding: 28px 20px; }
   .auth-container { padding: 12px; }
+}
 
 /* ─── ANIMATION KEYFRAMES (jika belum ada) ──────────────────────────── */
 @keyframes bannerIn {

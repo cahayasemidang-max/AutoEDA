@@ -163,6 +163,7 @@ class CleaningSession:
             'rows_now'   : len(df_after),
             'cols_now'   : len(df_after.columns),
             'data_status': detect_data_status(df_after),
+            'is_cleaned' : self.is_cleaned,
         }
 
     # ── Quick Fix ──────────────────────────────────────────────────────────────
@@ -294,6 +295,7 @@ class CleaningSession:
             'rows_now'   : len(df),
             'cols_now'   : len(df.columns),
             'data_status': detect_data_status(df),
+            'is_cleaned' : self.is_cleaned,
         }
 
     # ── Undo ──────────────────────────────────────────────────────────────────
@@ -1594,19 +1596,6 @@ def detect_data_status(df) -> str:
     )
 
     if has_critical:
-        return 'raw'
-
-    # ── Soft check: outliers only (IQR method) ────────────────────────────────
-    total_outliers = 0
-    for col in df.select_dtypes(include='number').columns:
-        s = df[col].dropna()
-        if len(s) < 4:
-            continue
-        q1, q3 = s.quantile(0.25), s.quantile(0.75)
-        iqr = q3 - q1
-        total_outliers += int(((s < q1 - 1.5 * iqr) | (s > q3 + 1.5 * iqr)).sum())
-
-    if total_outliers > 0:
         return 'raw'
 
     return 'clean'

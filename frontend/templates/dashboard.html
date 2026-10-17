@@ -2507,7 +2507,7 @@ var DCleaning = (function () {
             .then(function(d){
                 if (!d.ok){ _hideSpinner(); showToast(d.error||'Aksi Cepat gagal.','error'); if(btn) btn.disabled=false; return; }
                 _colsCache=null;
-                _updateUI(d, d.data_status === 'clean');
+                _updateUI(d, d.is_cleaned || d.data_status === 'clean');
                 showToast('Berhasil: '+d.label,'success');
             })
             .catch(function(e){ _hideSpinner(); showToast('Aksi Cepat error: '+e.message,'error'); if(btn) btn.disabled=false; });
@@ -2550,7 +2550,7 @@ var DCleaning = (function () {
             .then(function(d){
                 if (!d.ok){ _hideSpinner(); showToast(d.error||'Operasi gagal.', 'error'); return; }
                 _colsCache = null;
-                _updateUI(d, d.data_status === 'clean');
+                _updateUI(d, d.is_cleaned || d.data_status === 'clean');
                 showToast('Berhasil: ' + d.label, 'success');
             })
             .catch(function(e){ _hideSpinner(); showToast('Apply error: '+e.message, 'error'); });
@@ -2620,18 +2620,18 @@ var DCleaning = (function () {
         var sb=document.getElementById('db-banner-success');
         if (isCleaned) { if(wb) wb.style.display='none'; if(sb) sb.style.display='flex'; }
         else           { if(sb) sb.style.display='none'; if(wb) wb.style.display='flex'; }
-        // Reload page when data_status changes (raw↔clean) so dashboard renders ulang
-        // (data_status from backend is authoritative — matches detect_data_status())
-        if (d.data_status && d.data_status !== 'raw' && !_wasFullyClean) {
+        // Reload page when data_status changes or cleaning has been applied so dashboard renders ulang
+        if ((isCleaned || (d.data_status && d.data_status !== 'raw')) && !_wasFullyClean) {
             _wasFullyClean = true;
             _showCleanedSuccess();
-        } else if (d.data_status === 'raw') {
+        } else if (d.data_status === 'raw' && !isCleaned) {
             // Reload baik dari clean→raw (undo) maupun raw masih ada masalah,
             // agar server-side overview KPIs selalu fresh
             _wasFullyClean = false;
             location.reload();
         } else {
             _hideSpinner();
+            location.reload();
         }
     }
 

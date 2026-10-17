@@ -216,6 +216,11 @@ def api_error_handler(f):
             return jsonify({"ok": False, "error": f"Terjadi kesalahan server: {str(e)}"}), 500
     return wrapper
 
+def _session_key(safe_name):
+    """Mengembalikan session key per-user untuk CleaningSession."""
+    return f"{session.get('user_id', 'anon')}:{safe_name}"
+
+
 def _get_or_init_session(filename):
     """
     Ambil CleaningSession untuk filename.
@@ -227,11 +232,7 @@ def _get_or_init_session(filename):
     if not safe_name or safe_name != filename:
         return None, 'Nama file tidak valid.'
 
-    # Bug 1.1 fix: key session menyertakan user_id supaya tidak bocor antar user
-    user_id = session.get('user_id', 'anon')
-    session_key = f"{user_id}:{safe_name}"
-
-    sess = get_session(session_key)
+    sess = get_session(_session_key(safe_name))
     if sess is not None:
         return sess, None
 
@@ -264,7 +265,7 @@ def _get_or_init_session(filename):
     if df_raw is None:
         return None, 'Gagal membaca dataset.'
 
-    sess = reset_session(session_key, df_raw)
+    sess = reset_session(_session_key(safe_name), df_raw)
     return sess, None
 
 
@@ -399,7 +400,7 @@ def upload_file():
             # ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Init cleaning session untuk file baru ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
             df_raw = load_data(filepath)
             if df_raw is not None:
-                reset_session(filename, df_raw)
+                reset_session(_session_key(filename), df_raw)
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({
@@ -454,11 +455,11 @@ def _get_dashboard_context(filename):
     # Try disk cache first
     cached = _load_dashboard_cache(safe_name)
     if cached is not None:
-        sess = get_session(safe_name)
+        sess = get_session(_session_key(safe_name))
         if sess is None:
             df_raw = load_data(filepath)
             if df_raw is not None:
-                reset_session(safe_name, df_raw)
+                reset_session(_session_key(safe_name), df_raw)
         return cached
 
     df_raw = load_data(filepath)
@@ -466,9 +467,9 @@ def _get_dashboard_context(filename):
         return None
 
     # ── Ambil atau inisialisasi CleaningSession ───────────────────────────────
-    sess = get_session(safe_name)
+    sess = get_session(_session_key(safe_name))
     if sess is None:
-        sess = reset_session(safe_name, df_raw)
+        sess = reset_session(_session_key(safe_name), df_raw)
 
     # ── Tentukan df yang dipakai (cleaned atau raw) ───────────────────────────
     is_cleaned   = sess.is_cleaned
@@ -958,7 +959,7 @@ def download_report_pdf(filename):
     temp_pdf_path = os.path.join(temp_dir, f"{safe_name}_report.pdf")
 
     # Load sess to pass df
-    sess = get_session(safe_name)
+    sess = get_session(_session_key(safe_name))
     df = sess.df_current
 
     from backend.report_generator import generate_pdf_report
@@ -1003,7 +1004,7 @@ def generate_report_json(filename):
         os.makedirs(temp_dir, exist_ok=True)
         temp_pdf_path = os.path.join(temp_dir, f"{safe_name}_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
 
-        sess = get_session(safe_name)
+        sess = get_session(_session_key(safe_name))
         if sess is None or not hasattr(sess, 'df_current'):
             return {'ok': False, 'error': 'Session tidak ditemukan.'}, 400
 
@@ -1517,7 +1518,7 @@ def _load_analysis_df(filename):
                 return None, None, None, None
 
     # Cek session — pakai df yang sudah cleaned jika ada
-    sess = get_session(safe_name)
+    sess = get_session(_session_key(safe_name))
     if sess is not None:
         df = sess.df_current
     else:
@@ -1654,7 +1655,7 @@ def api_ts_charts(filename):
     try:
         safe_name = secure_filename(filename)
         from backend.cleaning_engine import get_session
-        sess = get_session(safe_name)
+        sess = get_session(_session_key(safe_name))
         if sess and hasattr(sess, 'df_current'):
             df = sess.df_current
     except Exception:
